@@ -18,6 +18,7 @@
 | Read store | Elasticsearch + Elasticsearch Java Client (co.elastic.clients) |
 | Module boundaries | Spring Modulith |
 | Testing | JUnit 5 + Testcontainers + AssertJ |
+| Lombok | Getter generation on entities (`@Getter` only) |
 | Docs | SpringDoc OpenAPI 3 |
 | Frontend | To be defined (separate repo) |
 | Containerization | Docker + Docker Compose |
@@ -48,6 +49,16 @@ src/
 └── main/
     └── java/
         └── com/retailms/
+            │
+            ├── config/
+            │   ├── domain/
+            │   │   └── model/          ← User, Company, Token, Permission
+            │   ├── application/
+            │   │   └── usecase/        ← CreateUser, UpdateCompany, ChangePassword...
+            │   ├── infrastructure/
+            │   │   └── persistence/    ← JPA repos, UserDetailsService, JWT filter
+            │   └── api/
+            │       └── rest/           ← /auth/**, /users/**, /company
             │
             ├── party/
             │   ├── domain/
@@ -89,9 +100,9 @@ src/
             │       └── rest/           ← emission, status and reissue endpoints
             │
             └── shared/
-                ├── domain/             ← base entity, value objects
-                ├── infrastructure/     ← audit, pagination, exception handling
-                └── api/                ← global error handler, page wrapper
+                ├── domain/             ← base entity, value types, common enums
+                ├── infrastructure/     ← audit config, pagination, exception handling
+                └── api/                ← global error handler, page response wrapper
 ```
 
 **Boundary enforcement** — Spring Modulith detects the bounded contexts automatically from the package structure and verifies boundaries at test time:
@@ -147,9 +158,13 @@ Events are published by aggregate roots via `registerEvent()` inside domain meth
 The system applies a lightweight CQRS separation at the infrastructure level:
 
 - **Write side** — all transactional operations (sales, purchases, stock movements) write exclusively to PostgreSQL via JPA. This is the system of record.
-- **Read side** — the `query` module maintains denormalized projections in Elasticsearch, built by consuming domain events. Analytical queries (sales by seller, revenue by period, stock turnover) hit Elasticsearch only, never PostgreSQL.
+- **Read side** — the `query` module maintains denormalized projections in Elasticsearch. It serves two kinds of frontend reads:
+  - **List views** — paginated, filterable screens that display data spanning multiple bounded contexts (e.g. a sales list showing customer name, seller name, products). These cannot be served by a single module's PostgreSQL because cross-module JOINs violate module isolation.
+  - **Analytics and reports** — aggregations, dashboards, and time-series queries (sales by seller, revenue by period, stock turnover).
 
-No module other than `query` reads from or writes to Elasticsearch. No module other than `query` exposes analytical query endpoints. The Elasticsearch index schema is internal to `query.infrastructure.elasticsearch` and is not shared with any other module.
+Simple within-module reads that happen immediately after a write (e.g. `GET /sales/{id}` right after `POST /sales`) are served by the owning module's own PostgreSQL — these require strong consistency that an async projection cannot guarantee.
+
+No module other than `query` reads from or writes to Elasticsearch. No module other than `query` exposes list or analytical query endpoints that span bounded contexts. The Elasticsearch index schema is internal to `query.infrastructure.elasticsearch` and is not shared with any other module.
 
 The Elastic Java client (`co.elastic.clients.elasticsearch.ElasticsearchClient`) is instantiated as a Spring `@Bean` in `query.infrastructure` and injected only within that package. Spring Data Elasticsearch is explicitly excluded — all index operations use the fluent API of the official client directly.
 
@@ -159,7 +174,8 @@ The Elastic Java client (`co.elastic.clients.elasticsearch.ElasticsearchClient`)
 
 | Context | Responsibility | Write store | Phase |
 |---|---|---|---|
-| Shared | Company, users, auth, cities | PostgreSQL | 1 |
+| Shared | Technical kernel — base entity, pagination, audit, value types | PostgreSQL | 1 |
+| Config | Users, authentication, permissions, company settings | PostgreSQL | 1 |
 | Party | Customers, suppliers, sellers, addresses, contacts | PostgreSQL | 2 |
 | Catalog | Products, SKUs, taxes, reference data | PostgreSQL | 2 |
 | Inventory | Stock ledger, recounts, balance queries | PostgreSQL | 3 |
@@ -203,7 +219,7 @@ The `query` context is **read-only and write-never** from the PostgreSQL perspec
 - [ ] Integration tests use Testcontainers with a real PostgreSQL instance and an Elasticsearch container.
 - [ ] OpenAPI spec auto-generated and served at `/docs`.
 - [ ] Structured logging (JSON) in production profile.
-- [ ] Query endpoints are eventually consistent — projections may lag writes by the duration of event processing.
+- [ ] Query module listeners run synchronously after commit by default (`@ApplicationModuleListener` / `AFTER_COMMIT`) — Elasticsearch is consistent with PostgreSQL before the HTTP response returns. Eventual consistency only applies if async event publication is explicitly enabled in the future.
 
 ---
 
@@ -213,9 +229,10 @@ The `query` context is **read-only and write-never** from the PostgreSQL perspec
 - [ ] Spring Boot project scaffolding (Gradle, Kotlin DSL, single project).
 - [ ] Spring Modulith dependency configured; `ModularStructureTest` passing.
 - [ ] Docker Compose with PostgreSQL and Elasticsearch.
-- [ ] Flyway base migration (V1): shared schema (city, company, user).
-- [ ] JWT auth module.
-- [ ] Shared kernel: base entity, audit fields, pagination, global error handler.
+- [ ] Flyway base migration (V1): shared schema (cities) and config schema (users, company, tokens).
+- [ ] `config` module: JWT authentication, user management, company settings.
+- [ ] `shared` kernel: base entity, audit fields, pagination, global error handler.
+- [ ] All endpoints secured via Spring Security configured in `config.infrastructure`.
 
 ### Phase 2 — reference data
 - [ ] Party module (domain → infra → api).
@@ -288,6 +305,11 @@ The `query` context is **read-only and write-never** from the PostgreSQL perspec
 - No `@Transactional` on domain entities; only on use case or service methods.
 - Unit tests cover domain logic; integration tests cover persistence + API.
 - `ModularStructureTest` runs on every build via `modules.verify()` — a failing structure test blocks the build.
+- Spring Security configuration lives exclusively in `config.infrastructure` — no other module defines security rules.
+- **Entity base classes:** aggregate roots extend `BaseAggregate<T>` (audit fields + `registerEvent()`). Plain entities that are not aggregate roots extend `BaseEntity`. Never use `AbstractAggregateRoot` directly.
+- **Entity construction:** entities have a `protected` no-arg constructor for JPA and a `static` factory method (`Entity.create(...)` or `Entity.of(...)`) as the only public instantiation point. `new Entity()` is never called from outside the domain.
+- **No public setters:** state changes happen exclusively through named domain methods. Lombok `@Getter` is used on entity classes; `@Setter`, `@Data`, `@Builder` are prohibited. PUT use cases rely on JPA dirty checking — no explicit `save()` after loading an existing entity.
+- **Domain invariants:** `IllegalArgumentException` for invalid input; `IllegalStateException` for invalid operation sequences. `GlobalExceptionHandler` maps them to `400` and `422` respectively. Domain classes never import Spring or HTTP types.
 - Domain events are named in the past tense (`SaleConfirmed`, not `SaleConfirmEvent`).
 - Listeners are never `@Transactional` themselves — they delegate to a use case that owns the transaction.
 - No module imports from another module's sub-packages. Only `{module}.domain.event.*` records may be referenced across module boundaries.

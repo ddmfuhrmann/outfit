@@ -1,0 +1,11 @@
+### Get all cities
+GET {{host}}/shared/cities
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Get city by ID
+GET {{host}}/shared/cities/1
+Authorization: Bearer {{token}}
+Content-Type: application/json

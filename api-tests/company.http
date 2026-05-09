@@ -1,0 +1,20 @@
+### Get company info
+GET {{host}}/shared/company
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Update company info
+PUT {{host}}/shared/company
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "cnpj": "12345678000190",
+  "companyName": "Outfit Comércio Ltda",
+  "tradeName": "Outfit",
+  "street": "Rua das Flores, 123",
+  "phone": "11999999999",
+  "cityId": 1
+}
