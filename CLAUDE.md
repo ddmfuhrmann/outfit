@@ -67,7 +67,7 @@ Each module follows clean architecture layers:
 ### Cross-cutting rules
 
 - **Cross-module communication:** domain events only. No module may import from another module's sub-packages. Only `{module}.domain.event.*` records may be referenced across boundaries.
-- **Domain events:** Java `record`s, past-tense names (`SaleConfirmed` not `SaleConfirmEvent`), published by aggregate roots via `registerEvent()`.
+- **Domain events:** Java `record`s, past-tense names (`SaleConfirmed` not `SaleConfirmEvent`), registered via `registerEvent()` inside aggregate root methods — never published from use cases via `ApplicationEventPublisher`.
 - **Listeners:** annotated `@ApplicationModuleListener`, named `{Action}Listener`, never `@Transactional` — they delegate to a use case that owns the transaction.
 - **Elasticsearch:** used exclusively in the `query` module via `co.elastic.clients.elasticsearch.ElasticsearchClient`. Spring Data Elasticsearch is not used anywhere. The `query` module never writes to PostgreSQL and never publishes events.
 - **Fiscal module:** emission is user-initiated via REST (never triggered automatically by events). After successful emission it publishes `NfceEmitted` / `NfeEmitted`. All SEFAZ communication is encapsulated in `fiscal.infrastructure.javaNfe`.
@@ -76,7 +76,14 @@ Each module follows clean architecture layers:
 - **Enums:** stored as `VARCHAR`, not ordinal integers.
 - **Timestamps:** UTC in Java, `TIMESTAMPTZ` in PostgreSQL.
 - **Pagination:** all list responses use the standard `PageResponse<T>` wrapper.
-- **OpenAPI:** spec served at `/docs` via SpringDoc. Query endpoints must document eventual consistency.
+- **OpenAPI:** spec served at `/docs` via SpringDoc. Query module endpoints must note that they are served from Elasticsearch; document eventual consistency only if async event publication is enabled.
 - **Schema changes:** Flyway only — no `spring.jpa.hibernate.ddl-auto` in production.
 - **Auth:** stateless JWT; all endpoints secured except `/auth/**`.
 - **Optimistic locking** required on financial aggregates (sale, receivable, payable).
+- **Entity base classes:** aggregate roots extend `BaseAggregate<T>` (inherits audit fields + `registerEvent()`). Plain entities that are not aggregate roots extend `BaseEntity`. Never use `AbstractAggregateRoot` directly.
+- **Domain invariants:** throw `IllegalArgumentException` for invalid input state (missing or malformed field); throw `IllegalStateException` for invalid operation sequences (e.g. deactivating an already-inactive user). `GlobalExceptionHandler` maps them to `400 Bad Request` and `422 Unprocessable Entity` respectively — domain classes must never import Spring or HTTP types.
+- **Lombok:** `@Getter` is the only annotation allowed on entities. `@Setter`, `@Data`, `@Builder`, `@AllArgsConstructor`, and `@RequiredArgsConstructor` are prohibited — they bypass domain logic or expose public mutation. DTOs are Java records and need no Lombok.
+- **Entity instantiation:** entities are never instantiated with `new` from outside the class. Aggregate roots expose a `static create(...)` factory method. Child entities are created exclusively via aggregate root domain methods. All entities have a `protected` no-arg constructor for JPA only.
+- **No public setters:** mutation happens exclusively through named domain behavior methods (`deactivate()`, `updateProfile()`, `confirm()`). PUT use cases load the entity and call its domain method — JPA dirty checking handles persistence within `@Transactional`, no explicit `save()` needed.
+- **DTO mapping:** DTOs own the mapping in both directions. Response DTOs have a `static from(Entity)` factory method. Request DTO fields are passed individually to the entity factory or domain method by the use case. No mapping framework (MapStruct, ModelMapper) is used.
+- **Logging:** `@Slf4j` (Lombok) on use cases — never on entities. Write operations log `INFO` after the operation succeeds. Failed authentication logs `WARN`. Read-only use cases (Get/List) log nothing at `INFO` — high-frequency calls add noise. Never log sensitive data (passwords, tokens, PII).

@@ -1,0 +1,27 @@
+services:
+  outfit-db:
+    image: postgres:16
+    container_name: outfit-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: outfit
+      POSTGRES_USER: outfit
+      POSTGRES_PASSWORD: outfit
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  outfit-es:
+    image: elasticsearch:8.13.4
+    container_name: outfit-elasticsearch
+    ports:
+      - "9200:9200"
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+volumes:
+  postgres_data:
+  es_data:

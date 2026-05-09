@@ -1,0 +1,44 @@
+### Get all users
+GET {{host}}/shared/users?page=0&size=20
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Get user by ID
+GET {{host}}/shared/users/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Create new user
+POST {{host}}/shared/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "login": "testuser",
+  "password": "secret123",
+  "name": "Test User",
+  "role": "USER"
+}
+
+###
+
+### Update user
+PUT {{host}}/shared/users/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Updated Name",
+  "role": "USER"
+}
+
+###
+
+### Deactivate user
+DELETE {{host}}/shared/users/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
