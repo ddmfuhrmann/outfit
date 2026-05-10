@@ -21,6 +21,7 @@ public class DeactivatePartyUseCase {
         var party = partyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Party not found: " + id));
         party.deactivate();
+        partyRepository.save(party);
         log.info("Party deactivated: id={}", id);
     }
 }

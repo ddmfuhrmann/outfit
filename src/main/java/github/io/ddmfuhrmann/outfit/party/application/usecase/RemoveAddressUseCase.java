@@ -21,6 +21,7 @@ public class RemoveAddressUseCase {
         var party = partyRepository.findById(partyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Party not found: " + partyId));
         party.removeAddress(addressId);
+        partyRepository.save(party);
         log.info("Address removed from party: partyId={}, addressId={}", partyId, addressId);
     }
 }

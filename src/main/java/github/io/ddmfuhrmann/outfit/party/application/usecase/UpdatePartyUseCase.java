@@ -22,6 +22,7 @@ public class UpdatePartyUseCase {
         var party = partyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Party not found: " + id));
         party.updateProfile(request.legalName(), request.name(), request.commissionPercent());
+        partyRepository.save(party);
         log.info("Party updated: id={}", id);
     }
 }

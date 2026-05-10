@@ -1,3 +1,3 @@
 package github.io.ddmfuhrmann.outfit.party.domain.event;
 
-public record PartyDeactivated(Long partyId) {}
+public record PartyDeactivated(Long partyId, PartySnapshot snapshot) {}

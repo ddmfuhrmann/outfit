@@ -1,5 +1,6 @@
 package github.io.ddmfuhrmann.outfit.shared.api.rest;
 
+import github.io.ddmfuhrmann.outfit.shared.domain.exception.ElasticsearchException;
 import github.io.ddmfuhrmann.outfit.shared.domain.exception.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -46,6 +47,11 @@ public class GlobalExceptionHandler {
         HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
         if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;
         return error(status, ex.getReason() != null ? ex.getReason() : status.getReasonPhrase(), req.getRequestURI());
+    }
+
+    @ExceptionHandler(ElasticsearchException.class)
+    ResponseEntity<Map<String, Object>> handleElasticsearch(ElasticsearchException ex, HttpServletRequest req) {
+        return error(HttpStatus.SERVICE_UNAVAILABLE, "Search service unavailable", req.getRequestURI());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

@@ -22,6 +22,9 @@ public class AddContactUseCase {
         var party = partyRepository.findById(partyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Party not found: " + partyId));
         party.addContact(request.classification(), request.description());
+        partyRepository.saveAndFlush(party);
+        party.onContactAdded();
+        partyRepository.save(party);
         log.info("Contact added to party: partyId={}", partyId);
     }
 }

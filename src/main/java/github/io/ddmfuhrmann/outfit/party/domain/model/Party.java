@@ -105,7 +105,7 @@ public class Party extends BaseAggregate<Party> {
     // Spring Data reads @DomainEvents after save() returns, which is after this callback fires.
     @PostPersist
     void onPersisted() {
-        registerEvent(new PartyCreated(getId(), legalName, customer, supplier, salesperson));
+        registerEvent(new PartyCreated(getId(), toSnapshot()));
     }
 
     public void updateProfile(String legalName, String name,
@@ -114,21 +114,25 @@ public class Party extends BaseAggregate<Party> {
         this.legalName = legalName.trim();
         this.name = name;
         this.commissionPercent = commissionPercent;
-        registerEvent(new PartyUpdated(getId()));
+        registerEvent(new PartyUpdated(getId(), toSnapshot()));
     }
 
     public void deactivate() {
         if (!active) throw new IllegalStateException("party is already inactive");
         this.active = false;
-        registerEvent(new PartyDeactivated(getId()));
+        registerEvent(new PartyDeactivated(getId(), toSnapshot()));
     }
 
     public Address addAddress(String street, String neighborhood, String zipCode,
                               String number, String complement, Long cityId) {
         var address = Address.create(getId(), street, neighborhood, zipCode, number, complement, cityId);
         addresses.add(address);
-        registerEvent(new PartyAddressAdded(getId()));
         return address;
+    }
+
+    // Called by use case after saveAndFlush so address.getId() is non-null in the snapshot.
+    public void onAddressAdded() {
+        registerEvent(new PartyAddressAdded(getId(), toSnapshot()));
     }
 
     public void removeAddress(Long addressId) {
@@ -137,14 +141,18 @@ public class Party extends BaseAggregate<Party> {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("address not found: " + addressId));
         addresses.remove(address);
-        registerEvent(new PartyAddressRemoved(getId(), addressId));
+        registerEvent(new PartyAddressRemoved(getId(), addressId, toSnapshot()));
     }
 
     public Contact addContact(ContactType classification, String description) {
         var contact = Contact.create(getId(), classification, description);
         contacts.add(contact);
-        registerEvent(new PartyContactAdded(getId()));
         return contact;
+    }
+
+    // Called by use case after saveAndFlush so contact.getId() is non-null in the snapshot.
+    public void onContactAdded() {
+        registerEvent(new PartyContactAdded(getId(), toSnapshot()));
     }
 
     public void removeContact(Long contactId) {
@@ -153,6 +161,39 @@ public class Party extends BaseAggregate<Party> {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("contact not found: " + contactId));
         contacts.remove(contact);
-        registerEvent(new PartyContactRemoved(getId(), contactId));
+        registerEvent(new PartyContactRemoved(getId(), contactId, toSnapshot()));
+    }
+
+    private PartySnapshot toSnapshot() {
+        return new PartySnapshot(
+                getId(),
+                personType != null ? personType.name() : null,
+                cnpj != null ? cnpj.value() : null,
+                cpf != null ? cpf.value() : null,
+                legalName,
+                name,
+                customer,
+                supplier,
+                salesperson,
+                commissionPercent,
+                active,
+                getCreatedAt(),
+                getUpdatedAt(),
+                addresses.stream()
+                        .map(address -> new PartyAddressSnapshot(
+                                address.getId(),
+                                address.getStreet(),
+                                address.getNeighborhood(),
+                                address.getZipCode(),
+                                address.getNumber(),
+                                address.getComplement(),
+                                address.getCityId()))
+                        .toList(),
+                contacts.stream()
+                        .map(contact -> new PartyContactSnapshot(
+                                contact.getId(),
+                                contact.getClassification().name(),
+                                contact.getDescription()))
+                        .toList());
     }
 }

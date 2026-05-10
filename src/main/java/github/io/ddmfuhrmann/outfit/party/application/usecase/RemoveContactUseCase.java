@@ -21,6 +21,7 @@ public class RemoveContactUseCase {
         var party = partyRepository.findById(partyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Party not found: " + partyId));
         party.removeContact(contactId);
+        partyRepository.save(party);
         log.info("Contact removed from party: partyId={}, contactId={}", partyId, contactId);
     }
 }
