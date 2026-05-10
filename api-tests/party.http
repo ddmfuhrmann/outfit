@@ -1,0 +1,149 @@
+### Create party — legal entity (customer)
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "LEGAL_ENTITY",
+  "cnpj": "11222333000181",
+  "legalName": "Acme Comércio Ltda",
+  "name": "Acme",
+  "customer": true,
+  "supplier": false,
+  "salesperson": false
+}
+
+###
+
+### Create party — individual (customer + salesperson)
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "INDIVIDUAL",
+  "cpf": "52998224725",
+  "legalName": "João da Silva",
+  "name": "João",
+  "customer": true,
+  "supplier": false,
+  "salesperson": true,
+  "commissionPercent": 5.00
+}
+
+###
+
+### Create party — legal entity (supplier)
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "LEGAL_ENTITY",
+  "cnpj": "45543915000154",
+  "legalName": "Fornecedora Nacional S.A.",
+  "name": "Fornecedora Nacional",
+  "customer": false,
+  "supplier": true,
+  "salesperson": false
+}
+
+###
+
+### List parties
+GET {{host}}/party?page=0&size=20
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Get party by ID
+GET {{host}}/party/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Update party profile
+PUT {{host}}/party/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "legalName": "Acme Comércio e Serviços Ltda",
+  "name": "Acme Serviços",
+  "commissionPercent": null
+}
+
+###
+
+### Deactivate party
+DELETE {{host}}/party/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Add address to party
+POST {{host}}/party/1/addresses
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "street": "Rua das Flores",
+  "neighborhood": "Centro",
+  "zipCode": "01310100",
+  "number": "100",
+  "complement": "Sala 5",
+  "cityId": 1
+}
+
+###
+
+### Remove address from party
+DELETE {{host}}/party/1/addresses/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Add contact to party — phone
+POST {{host}}/party/1/contacts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "classification": "PHONE",
+  "description": "11999990000"
+}
+
+###
+
+### Add contact to party — email
+POST {{host}}/party/1/contacts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "classification": "EMAIL",
+  "description": "contato@acme.com.br"
+}
+
+###
+
+### Add contact to party — WhatsApp
+POST {{host}}/party/1/contacts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "classification": "WHATSAPP",
+  "description": "11988880000"
+}
+
+###
+
+### Remove contact from party
+DELETE {{host}}/party/1/contacts/1
+Authorization: Bearer {{token}}
+Content-Type: application/json

@@ -77,6 +77,7 @@ Each module follows clean architecture layers:
 - **Enums:** stored as `VARCHAR`, not ordinal integers.
 - **Timestamps:** UTC in Java, `TIMESTAMPTZ` in PostgreSQL.
 - **Pagination:** all list responses use the standard `PageResponse<T>` wrapper.
+- **List access:** use `getFirst()` instead of `get(0)` when accessing the first element of a list (Java 21+).
 - **OpenAPI:** spec served at `/docs` via SpringDoc. Query module endpoints must note that they are served from Elasticsearch; document eventual consistency only if async event publication is enabled.
 - **Schema changes:** Flyway only — no `spring.jpa.hibernate.ddl-auto` in production.
 - **Auth:** stateless JWT; all endpoints secured except `/auth/**`.

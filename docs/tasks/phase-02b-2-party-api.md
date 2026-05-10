@@ -1,8 +1,8 @@
 # Tasks — Phase 2b-2: Party API
 
-DTOs, use cases, controller e testes para o módulo `party`.
-Cobre as operações de escrita (create, update, deactivate, add/remove address e contact).
-Os endpoints de leitura (`GET /party`, `GET /party/{id}`) são implementados no task phase-02b-3-query-module.md.
+DTOs, use cases, controller, and tests for the `party` module.
+Covers write operations (create, update, deactivate, add/remove address and contact).
+Read endpoints (`GET /party`, `GET /party/{id}`) are implemented in phase-02b-3-query-module.md.
 
 Depends on: docs/tasks/phase-02b-1-domain.md
 
@@ -12,8 +12,8 @@ Depends on: docs/tasks/phase-02b-1-domain.md
 
 ### Requests
 
-- [ ] `CreatePartyRequest.java` — record com todos os campos de party + listas opcionais de endereços e contatos iniciais
-- [ ] `UpdatePartyRequest.java` — record com campos de perfil atualizáveis (`legalName`, `name`, `commissionPercent`)
+- [ ] `CreatePartyRequest.java` — record with all party fields + optional lists of initial addresses and contacts
+- [ ] `UpdatePartyRequest.java` — record with updatable profile fields (`legalName`, `name`, `commissionPercent`)
 - [ ] `AddAddressRequest.java` — `record AddAddressRequest(String street, String neighborhood, String zipCode, String number, String complement, Long cityId) {}`
 - [ ] `AddContactRequest.java` — `record AddContactRequest(ContactType classification, String description) {}`
 
@@ -25,13 +25,13 @@ Depends on: docs/tasks/phase-02b-1-domain.md
 
 ## 2. Use cases
 
-- [ ] `CreatePartyUseCase` — chama `Party.create(...)`, salva; se a request incluir endereços ou contatos iniciais chama os métodos do aggregate antes do save; retorna `PartyCreatedResponse`
-- [ ] `UpdatePartyUseCase` — carrega → `party.updateProfile(...)` → dirty checking (sem `save()` explícito)
-- [ ] `DeactivatePartyUseCase` — carrega → `party.deactivate()`
-- [ ] `AddAddressUseCase` — carrega party → `party.addAddress(...)` → dirty checking
-- [ ] `RemoveAddressUseCase` — carrega party → `party.removeAddress(addressId)`
-- [ ] `AddContactUseCase` — carrega party → `party.addContact(...)`
-- [ ] `RemoveContactUseCase` — carrega party → `party.removeContact(contactId)`
+- [ ] `CreatePartyUseCase` — calls `Party.create(...)`, saves; if the request includes initial addresses or contacts, calls the aggregate methods after save; returns `PartyCreatedResponse`
+- [ ] `UpdatePartyUseCase` — loads → `party.updateProfile(...)` → dirty checking (no explicit `save()`)
+- [ ] `DeactivatePartyUseCase` — loads → `party.deactivate()`
+- [ ] `AddAddressUseCase` — loads party → `party.addAddress(...)` → dirty checking
+- [ ] `RemoveAddressUseCase` — loads party → `party.removeAddress(addressId)`
+- [ ] `AddContactUseCase` — loads party → `party.addContact(...)`
+- [ ] `RemoveContactUseCase` — loads party → `party.removeContact(contactId)`
 
 ---
 
@@ -51,24 +51,24 @@ Depends on: docs/tasks/phase-02b-1-domain.md
 ## 4. Tests
 
 - [ ] `PartyControllerIT`
-  - Criar `LEGAL_ENTITY` — `400` se `cnpj` ausente
-  - Criar `INDIVIDUAL` — `400` se `cpf` ausente
-  - Criar party sem nenhum flag de papel — `400`
-  - `POST /party` retorna `201` com `id` no body
-  - `PUT /party/{id}` retorna `204`; `PartyUpdated` registrado no aggregate
-  - `DELETE /party/{id}` retorna `204`; `PartyDeactivated` registrado no aggregate
-  - Desativar party já inativo — `422`
-  - `POST /party/{id}/addresses` retorna `204`; `PartyAddressAdded` registrado
-  - `DELETE /party/{id}/addresses/{addressId}` retorna `204`; `PartyAddressRemoved` registrado
-  - `POST /party/{id}/contacts` retorna `204`; `PartyContactAdded` registrado
-  - `DELETE /party/{id}/contacts/{contactId}` retorna `204`; `PartyContactRemoved` registrado
-  - `PartyCreated` registrado no aggregate após `POST /party`
+  - Create `LEGAL_ENTITY` — `400` if `cnpj` is absent
+  - Create `INDIVIDUAL` — `400` if `cpf` is absent
+  - Create party with no role flag set — `400`
+  - `POST /party` returns `201` with `id` in body
+  - `PUT /party/{id}` returns `204`; `PartyUpdated` registered in aggregate
+  - `DELETE /party/{id}` returns `204`; `PartyDeactivated` registered in aggregate
+  - Deactivate already-inactive party — `422`
+  - `POST /party/{id}/addresses` returns `204`; `PartyAddressAdded` registered
+  - `DELETE /party/{id}/addresses/{addressId}` returns `204`; `PartyAddressRemoved` registered
+  - `POST /party/{id}/contacts` returns `204`; `PartyContactAdded` registered
+  - `DELETE /party/{id}/contacts/{contactId}` returns `204`; `PartyContactRemoved` registered
+  - `PartyCreated` registered in aggregate after `POST /party`
 
 ---
 
 ## 5. Verification
 
 - [ ] `./gradlew build` — green
-- [ ] `./gradlew test` — todos os ITs passam
-- [ ] `ModularStructureTest` passa
-- [ ] `GET /docs` — endpoints de escrita de party visíveis no OpenAPI
+- [ ] `./gradlew test` — all ITs pass
+- [ ] `ModularStructureTest` passes
+- [ ] `GET /docs` — party write endpoints visible in OpenAPI
