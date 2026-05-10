@@ -1,0 +1,40 @@
+### Create brand
+POST {{host}}/catalog/brands
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Nike"
+}
+
+###
+
+### List brands
+GET {{host}}/catalog/brands?page=0&size=20
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Get brand by ID
+GET {{host}}/catalog/brands/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Rename brand
+PUT {{host}}/catalog/brands/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Nike Brasil"
+}
+
+###
+
+### Delete brand
+DELETE {{host}}/catalog/brands/1
+Authorization: Bearer {{token}}
+Content-Type: application/json

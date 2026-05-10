@@ -1,0 +1,42 @@
+### Create category
+POST {{host}}/catalog/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Camisetas",
+  "ncmCode": "6109.10.00"
+}
+
+###
+
+### List categories
+GET {{host}}/catalog/categories?page=0&size=20
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Get category by ID
+GET {{host}}/catalog/categories/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Rename category
+PUT {{host}}/catalog/categories/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Camisetas Manga Curta",
+  "ncmCode": "6109.10.00"
+}
+
+###
+
+### Delete category
+DELETE {{host}}/catalog/categories/1
+Authorization: Bearer {{token}}
+Content-Type: application/json

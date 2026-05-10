@@ -1,0 +1,40 @@
+### Create color
+POST {{host}}/catalog/colors
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Preto"
+}
+
+###
+
+### List colors
+GET {{host}}/catalog/colors?page=0&size=20
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Get color by ID
+GET {{host}}/catalog/colors/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Rename color
+PUT {{host}}/catalog/colors/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Preto Fosco"
+}
+
+###
+
+### Delete color
+DELETE {{host}}/catalog/colors/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
