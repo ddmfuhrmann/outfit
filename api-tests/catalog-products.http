@@ -1,0 +1,67 @@
+
+### Create product
+POST {{host}}/catalog/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Widget",
+  "price": 19.99,
+  "cost": 10.00,
+  "purchaseDate": "2025-06-01",
+  "colorId": 841438248690706109,
+  "brandId": 841438335802204312,
+  "categoryId": 841438443876836834,
+  "skus": [
+    {
+      "barcode": "123456789012",
+      "sizeId": 841438534196978234,
+      "implantationQty": 10
+    }
+  ]
+}
+
+###
+
+### Update product
+PUT {{host}}/catalog/products/{{productId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Widget Updated",
+  "price": 21.99,
+  "cost": 10.50,
+  "purchaseDate": "2025-07-01",
+  "colorId": 3,
+  "brandId": 1,
+  "categoryId": 4
+}
+
+###
+
+### Delete product
+DELETE {{host}}/catalog/products/{{productId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Add SKU
+POST {{host}}/catalog/products/{{productId}}/skus
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "barcode": "987654321098",
+  "sizeId": 4,
+  "implantationQty": 20
+}
+
+###
+
+### Delete SKU
+DELETE {{host}}/catalog/products/{{productId}}/skus/{{skuId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
