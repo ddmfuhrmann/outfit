@@ -12,7 +12,7 @@ Add items freely. When an idea matures into a concrete requirement, migrate it t
 
 ## Party
 
-<!-- improvements for customers, suppliers, sellers, addresses -->
+- **CEP lookup integration** — integrate a Brazilian CEP API (e.g. ViaCEP) so that when an address is added to a party, providing the zip code auto-fills `street`, `neighborhood`, and `city`. Reduces data entry errors and ensures address consistency. The integration should live in the `party` module (infrastructure layer) and be optional — the address can still be saved manually if the lookup fails or is skipped.
 
 ## Catalog
 
