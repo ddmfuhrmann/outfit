@@ -21,13 +21,14 @@ public class DeleteBrandUseCase {
 
     @Transactional
     public void execute(Long id) {
-        if (!brandRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Brand not found: " + id);
-        }
+        var brand = brandRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Brand not found: " + id));
         if (productRepository.existsByBrandId(id)) {
             throw new IllegalStateException("Brand is in use by one or more products");
         }
-        brandRepository.deleteById(id);
+        brand.delete();
+        brandRepository.save(brand);
+        brandRepository.delete(brand);
         log.info("Brand deleted: id={}", id);
     }
 }

@@ -18,10 +18,11 @@ public class DeleteSizeUseCase {
 
     @Transactional
     public void execute(Long id) {
-        if (!sizeRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Size not found: " + id);
-        }
-        sizeRepository.deleteById(id);
+        var size = sizeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Size not found: " + id));
+        size.delete();
+        sizeRepository.save(size);
+        sizeRepository.delete(size);
         log.info("Size deleted: id={}", id);
     }
 }
