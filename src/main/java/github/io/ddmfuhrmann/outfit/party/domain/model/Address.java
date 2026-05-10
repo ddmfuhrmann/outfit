@@ -27,13 +27,13 @@ public class Address extends BaseEntity {
     @Column(length = 100)
     private String complement;
 
-    @Column(name = "city_id")
-    private Long cityId;
+    @Column(name = "city_ibge_code")
+    private Integer cityIbgeCode;
 
     protected Address() {}
 
     public static Address create(Long partyId, String street, String neighborhood,
-                                 String zipCode, String number, String complement, Long cityId) {
+                                 String zipCode, String number, String complement, Integer cityIbgeCode) {
         var address = new Address();
         address.partyId = partyId;
         address.street = street;
@@ -41,7 +41,7 @@ public class Address extends BaseEntity {
         address.zipCode = zipCode;
         address.number = number;
         address.complement = complement;
-        address.cityId = cityId;
+        address.cityIbgeCode = cityIbgeCode;
         return address;
     }
 }

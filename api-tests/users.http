@@ -5,8 +5,8 @@ Content-Type: application/json
 
 ###
 
-### Get user by ID
-GET {{host}}/shared/users/1
+### Get user by login
+GET {{host}}/shared/users/testuser
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -27,7 +27,7 @@ Content-Type: application/json
 ###
 
 ### Update user
-PUT {{host}}/shared/users/1
+PUT {{host}}/shared/users/testuser
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -39,6 +39,6 @@ Content-Type: application/json
 ###
 
 ### Deactivate user
-DELETE {{host}}/shared/users/1
+DELETE {{host}}/shared/users/testuser
 Authorization: Bearer {{token}}
 Content-Type: application/json

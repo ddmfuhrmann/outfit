@@ -19,12 +19,12 @@ public class UpdateUserUseCase {
     }
 
     @Transactional
-    public UserResponse execute(Long id, UpdateUserRequest request) {
-        var user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User " + id + " not found"));
+    public UserResponse execute(String login, UpdateUserRequest request) {
+        var user = userRepository.findById(login)
+                .orElseThrow(() -> new ResourceNotFoundException("User " + login + " not found"));
         if (request.name() != null) user.updateProfile(request.name());
         if (request.role() != null) user.changeRole(request.role());
-        log.info("User updated: id={}", id);
+        log.info("User updated: login={}", login);
         return UserResponse.from(user);
     }
 }

@@ -1,5 +1,6 @@
 package github.io.ddmfuhrmann.outfit.shared.domain.model;
 
+import com.github.f4b6a3.tsid.TsidCreator;
 import jakarta.persistence.*;
 import lombok.Getter;
 import org.springframework.data.annotation.CreatedDate;
@@ -16,8 +17,11 @@ import java.util.Collection;
 public abstract class BaseAggregate<T extends BaseAggregate<T>> extends AbstractAggregateRoot<T> {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    protected BaseAggregate() {
+        this.id = TsidCreator.getTsid().toLong();
+    }
 
     @CreatedDate
     @Column(updatable = false)

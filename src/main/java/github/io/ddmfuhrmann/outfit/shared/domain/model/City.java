@@ -2,13 +2,19 @@ package github.io.ddmfuhrmann.outfit.shared.domain.model;
 
 import jakarta.persistence.*;
 import lombok.Getter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.Instant;
 
 @Getter
 @Entity
 @Table(name = "city")
-public class City extends BaseEntity {
+@EntityListeners(AuditingEntityListener.class)
+public class City {
 
-    @Column(nullable = false, unique = true)
+    @Id
     private Integer ibgeCityCode;
 
     @Column(nullable = false)
@@ -22,6 +28,13 @@ public class City extends BaseEntity {
 
     @Column(nullable = false, length = 2)
     private String stateAbbr;
+
+    @CreatedDate
+    @Column(updatable = false)
+    private Instant createdAt;
+
+    @LastModifiedDate
+    private Instant updatedAt;
 
     protected City() {}
 

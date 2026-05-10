@@ -41,14 +41,13 @@ class CityControllerIT extends AbstractIT {
 
     @Test
     void getCityByIdReturns200() {
-        Long id = jdbcTemplate.queryForObject(
+        jdbcTemplate.update(
                 "INSERT INTO city (ibge_city_code, ibge_state_code, city_name, state_name, state_abbr, created_at, updated_at)" +
-                " VALUES (4314902, 43, 'Porto Alegre', 'Rio Grande do Sul', 'RS', now(), now()) RETURNING id",
-                Long.class);
+                " VALUES (4314902, 43, 'Porto Alegre', 'Rio Grande do Sul', 'RS', now(), now())");
         String token = login();
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
-        var response = rest.exchange("/shared/cities/" + id, HttpMethod.GET,
+        var response = rest.exchange("/shared/cities/4314902", HttpMethod.GET,
                 new HttpEntity<>(headers), String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     }

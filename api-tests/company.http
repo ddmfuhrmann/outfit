@@ -16,5 +16,5 @@ Content-Type: application/json
   "tradeName": "Outfit",
   "street": "Rua das Flores, 123",
   "phone": "11999999999",
-  "cityId": 1
+  "cityIbgeCode": 3550308
 }

@@ -95,7 +95,7 @@ Content-Type: application/json
   "zipCode": "01310100",
   "number": "100",
   "complement": "Sala 5",
-  "cityId": 1
+  "cityIbgeCode": 3550308
 }
 
 ###

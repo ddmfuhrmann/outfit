@@ -6,6 +6,6 @@ public record UpdateCompanyRequest(
         String tradeName,
         String street,
         String phone,
-        Long cityId
+        Integer cityIbgeCode
 ) {
 }

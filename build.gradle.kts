@@ -42,6 +42,7 @@ dependencies {
 	testImplementation("org.testcontainers:postgresql")
 	testImplementation("org.testcontainers:elasticsearch")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+	implementation("com.github.f4b6a3:tsid-creator:5.2.6")
 	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.projectlombok:lombok")
 }

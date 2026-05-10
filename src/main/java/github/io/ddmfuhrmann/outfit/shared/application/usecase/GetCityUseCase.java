@@ -16,9 +16,9 @@ public class GetCityUseCase {
     }
 
     @Transactional(readOnly = true)
-    public CityResponse execute(Long id) {
-        return cityRepository.findById(id)
+    public CityResponse execute(Integer ibgeCode) {
+        return cityRepository.findById(ibgeCode)
                 .map(CityResponse::from)
-                .orElseThrow(() -> new ResourceNotFoundException("City " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("City " + ibgeCode + " not found"));
     }
 }

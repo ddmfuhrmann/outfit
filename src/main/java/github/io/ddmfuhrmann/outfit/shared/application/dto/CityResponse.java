@@ -5,7 +5,6 @@ import github.io.ddmfuhrmann.outfit.shared.domain.model.City;
 import java.time.Instant;
 
 public record CityResponse(
-        Long id,
         Integer ibgeCityCode,
         Integer ibgeStateCode,
         String cityName,
@@ -16,7 +15,6 @@ public record CityResponse(
 ) {
     public static CityResponse from(City city) {
         return new CityResponse(
-                city.getId(),
                 city.getIbgeCityCode(),
                 city.getIbgeStateCode(),
                 city.getCityName(),

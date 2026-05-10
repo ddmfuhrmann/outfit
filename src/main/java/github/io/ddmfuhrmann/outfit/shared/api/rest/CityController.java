@@ -28,8 +28,8 @@ public class CityController {
         return ResponseEntity.ok(listCities.execute(search, PageRequest.of(page, size)));
     }
 
-    @GetMapping("/{id}")
-    ResponseEntity<CityResponse> get(@PathVariable Long id) {
-        return ResponseEntity.ok(getCity.execute(id));
+    @GetMapping("/{ibgeCode}")
+    ResponseEntity<CityResponse> get(@PathVariable Integer ibgeCode) {
+        return ResponseEntity.ok(getCity.execute(ibgeCode));
     }
 }

@@ -5,7 +5,7 @@ Content-Type: application/json
 
 ###
 
-### Get city by ID
-GET {{host}}/shared/cities/1
+### Get city by IBGE code
+GET {{host}}/shared/cities/3550308
 Authorization: Bearer {{token}}
 Content-Type: application/json

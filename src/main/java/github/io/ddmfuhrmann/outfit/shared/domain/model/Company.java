@@ -2,13 +2,20 @@ package github.io.ddmfuhrmann.outfit.shared.domain.model;
 
 import jakarta.persistence.*;
 import lombok.Getter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.Instant;
 
 @Getter
 @Entity
 @Table(name = "company")
-public class Company extends BaseEntity {
+@EntityListeners(AuditingEntityListener.class)
+public class Company {
 
-    @Column(nullable = false, length = 14, unique = true)
+    @Id
+    @Column(nullable = false, length = 14)
     private String cnpj;
 
     @Column(nullable = false, length = 200)
@@ -24,8 +31,15 @@ public class Company extends BaseEntity {
     private String phone;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "city_id")
+    @JoinColumn(name = "city_ibge_code")
     private City city;
+
+    @CreatedDate
+    @Column(updatable = false)
+    private Instant createdAt;
+
+    @LastModifiedDate
+    private Instant updatedAt;
 
     protected Company() {}
 
