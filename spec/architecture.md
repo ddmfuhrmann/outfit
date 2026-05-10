@@ -191,6 +191,26 @@ public record CustomerDeactivated(String cpf) {}
 
 Events are **never** published from use cases via `ApplicationEventPublisher`. The aggregate root registers them via `registerEvent()` inside the method that causes the state change. Spring Data publishes registered events automatically after `save()`.
 
+#### Snapshot records
+
+For aggregates whose events are consumed by the `query` module, each event carries a snapshot record containing the full aggregate state at the time of the change. This lets listeners index without additional DB queries — the event is self-contained.
+
+Snapshots live alongside their events in `domain.event`:
+
+```java
+// domain/event/PartySnapshot.java
+public record PartySnapshot(
+    Long id, String legalName, boolean active, Instant createdAt, Instant updatedAt,
+    List<PartyAddressSnapshot> addresses, List<PartyContactSnapshot> contacts) {}
+
+// domain/event/PartyCreated.java
+public record PartyCreated(Long partyId, PartySnapshot snapshot) {}
+```
+
+The aggregate root builds the snapshot from its own state via a private `toSnapshot()` method and passes it to `registerEvent()`. Child entities get their own nested snapshot records (e.g., `PartyAddressSnapshot`).
+
+Simple reference-data events (e.g., `BrandRenamed`) do not need a snapshot — they carry only the changed fields.
+
 > **Dirty checking caveat:** PUT and DELETE use cases rely on JPA dirty checking and do not call `save()` explicitly. This means `registerEvent()` calls inside domain methods (e.g. `deactivate()`) are stored on the entity but **not published** unless `save()` is called explicitly. When a listener needs to react to a soft-delete or update event, the use case must call `repository.save(entity)` before returning so Spring Data triggers event publication.
 
 ---
