@@ -38,6 +38,7 @@ Depends on: docs/tasks/phase-02b-2-party-api.md
   - `@ApplicationModuleListener` — not `@Transactional`
   - Handles `PartyCreated`, `PartyUpdated`, `PartyDeactivated`, `PartyAddressAdded`, `PartyAddressRemoved`, `PartyContactAdded`, `PartyContactRemoved`
   - All events delegate to `IndexPartyUseCase` passing `partyId` — the use case always reloads and re-indexes the full document
+  - **Synchronous replication:** `EventPublicationConfig` (shared) provides `SyncTaskExecutor`, so listeners run in the same request thread after the Postgres commit. The HTTP response is only sent after ES indexing completes — no eventual consistency lag for Party.
 
 ---
 
@@ -67,9 +68,9 @@ Depends on: docs/tasks/phase-02b-2-party-api.md
 
 - [ ] `query/api/rest/PartyQueryController.java`
   - `GET /party?q=&role=` → `SearchPartiesUseCase`
-    - OpenAPI: "Served from Elasticsearch. Eventually consistent — reflects the state of the index after domain events are processed."
+    - OpenAPI: "Served from Elasticsearch. Reflects committed state synchronously — domain events are indexed before the write response is sent."
   - `GET /party/{id}` → `GetPartyByIdUseCase`
-    - OpenAPI: mesma nota de eventual consistency
+    - OpenAPI: mesma nota de consistência síncrona
 
 ---
 

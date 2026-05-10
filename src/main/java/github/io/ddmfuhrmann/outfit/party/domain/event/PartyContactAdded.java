@@ -1,3 +1,3 @@
 package github.io.ddmfuhrmann.outfit.party.domain.event;
 
-public record PartyContactAdded(Long partyId) {}
+public record PartyContactAdded(Long partyId, PartySnapshot snapshot) {}
