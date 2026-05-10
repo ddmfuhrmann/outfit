@@ -193,7 +193,9 @@ The `query` context is **read-only and write-never** from the PostgreSQL perspec
 
 ### Functional requirements
 
-- [ ] CRUD for all reference data (parties, products, categories, sizes, colors, brands).
+- [ ] CRUD for all reference data entities: parties, products (with SKU grid), categories, sizes, colors, brands.
+- [ ] Product catalog uses a grid model: `Product` (header) owns a collection of `ProductSku` child entities (size + barcode). All inventory and sales operations reference `ProductSku`.
+- [ ] Reference data mutations publish domain events (e.g. `ColorRenamed`, `BrandRenamed`, `CategoryRenamed`) to allow the `query` module to keep denormalized Elasticsearch projections consistent via fan-out on write (`UpdateByQuery`).
 - [ ] Full sales flow: quote → sale → payment schedule → stock decrement.
 - [ ] Consignment flow: issue → partial return → confirm sold items.
 - [ ] Store credit flow: receive items back → issue credit note → apply to future sale.
@@ -225,6 +227,8 @@ The `query` context is **read-only and write-never** from the PostgreSQL perspec
 
 ## 6. Phased delivery plan
 
+> **MVP scope.** The phases below cover the minimum viable feature set. Ideas and improvements that arise during development but fall outside this scope should be recorded in `docs/backlog.md` for future consideration.
+
 ### Phase 1 — foundation
 - [ ] Spring Boot project scaffolding (Gradle, Kotlin DSL, single project).
 - [ ] Spring Modulith dependency configured; `ModularStructureTest` passing.
@@ -237,7 +241,12 @@ The `query` context is **read-only and write-never** from the PostgreSQL perspec
 ### Phase 2 — reference data
 - [ ] Party module (domain → infra → api).
 - [ ] Product catalog module (domain → infra → api).
-- [ ] Seed data migration for cities, sizes, colors, brands, categories.
+  - `Product` is the aggregate root (header): description, price, cost, color, brand, category, tax.
+  - `ProductSku` is a child entity of `Product` (replaces legacy `PRODUCTGRID`): size, barcode. `implantationQty` is part of the creation request DTO only — it is not persisted on the entity. On SKU creation, the catalog module publishes a `ProductSkuCreated` event carrying `implantationQty`; the `inventory` module listens and records the initial stock entry.
+  - All downstream references (inventory movements, sale items, consignment items, stock recounts) point to `ProductSku`, never to `Product` directly.
+  - CRUD for `Product` manages the header + SKU collection in a single aggregate boundary.
+- [ ] Full CRUD for all reference data entities: sizes, colors, brands, categories.
+- [ ] Domain events published on reference data mutations (e.g. `ColorRenamed`, `BrandRenamed`) so the `query` module can fan-out updates to denormalized Elasticsearch documents.
 
 ### Phase 3 — inventory
 - [ ] Inventory module with ledger pattern.

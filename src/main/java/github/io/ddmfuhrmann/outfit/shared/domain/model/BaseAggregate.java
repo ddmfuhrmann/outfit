@@ -1,13 +1,16 @@
 package github.io.ddmfuhrmann.outfit.shared.domain.model;
 
 import jakarta.persistence.*;
+import lombok.Getter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.domain.AbstractAggregateRoot;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
+import java.util.Collection;
 
+@Getter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 public abstract class BaseAggregate<T extends BaseAggregate<T>> extends AbstractAggregateRoot<T> {
@@ -23,7 +26,6 @@ public abstract class BaseAggregate<T extends BaseAggregate<T>> extends Abstract
     @LastModifiedDate
     private Instant updatedAt;
 
-    public Long getId() { return id; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
+    public Collection<Object> getRegisteredEvents() { return domainEvents(); }
+    public void resetRegisteredEvents() { clearDomainEvents(); }
 }

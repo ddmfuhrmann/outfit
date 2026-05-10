@@ -24,6 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture
 
 Retail management system — modular monolith migrated from a Vaadin legacy app. Full spec in `docs/project-spec.md`.
+PRD and task authoring process: `spec/workflow.md`.
 
 **Stack:** Java 21 · Spring Boot 3.x · Spring Modulith · Spring Data JPA · PostgreSQL · Flyway · Spring Security (stateless JWT) · Elasticsearch (Elastic Java Client only) · JUnit 5 + Testcontainers
 
