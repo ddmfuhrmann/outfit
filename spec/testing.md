@@ -15,8 +15,13 @@ public abstract class AbstractIT {
 
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16");
 
+    static final ElasticsearchContainer ELASTIC =
+            new ElasticsearchContainer("docker.elastic.co/elasticsearch/elasticsearch:8.13.4")
+                    .withEnv("xpack.security.enabled", "false");
+
     static {
         POSTGRES.start();
+        ELASTIC.start();
     }
 
     @DynamicPropertySource
@@ -24,14 +29,29 @@ public abstract class AbstractIT {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        registry.add("elasticsearch.uris", () -> "http://" + ELASTIC.getHttpHostAddress());
+    }
+
+    private static String cachedToken;
+
+    protected HttpHeaders authHeaders(TestRestTemplate rest) {
+        if (cachedToken == null) {
+            cachedToken = rest.postForObject("/auth/login",
+                    new LoginRequest("admin", "admin"), LoginResponse.class).token();
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(cachedToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return headers;
     }
 }
 ```
 
 - `RANDOM_PORT` — avoids port conflicts in parallel runs
 - `@ActiveProfiles("test")` — loads `application-test.yaml`
-- Static `PostgreSQLContainer` starts once per JVM; Flyway runs on first connection and reuses the schema for all test classes in the same run
+- Static containers start once per JVM; Flyway runs on first connection and reuses the schema for all test classes in the same run
 - `@DynamicPropertySource` wires the Testcontainers connection at runtime
+- `authHeaders(rest)` caches the JWT in a static field — `/auth/login` is called once per Spring context, not once per test
 
 ### application-test.yaml
 
@@ -58,28 +78,18 @@ class CustomerControllerIT extends AbstractIT {
     @Autowired
     JdbcTemplate jdbc;
 
-    // --- helper ---
-
-    String loginAsAdmin() {
-        return rest.postForObject("/auth/login",
-            new LoginRequest("admin", "admin"), LoginResponse.class).token();
-    }
-
-    HttpHeaders bearerHeaders(String token) {
-        var headers = new HttpHeaders();
-        headers.setBearerAuth(token);
-        return headers;
-    }
-
-    HttpHeaders bearerJsonHeaders(String token) {
-        var headers = bearerHeaders(token);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return headers;
+    @Test
+    void createReturns201() {
+        var response = rest.exchange("/party/customers", HttpMethod.POST,
+                new HttpEntity<>(new CreateCustomerRequest("Ana", "52998224725"), authHeaders(rest)),
+                CustomerResponse.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
 }
 ```
 
-Always extract repeated HTTP boilerplate into private helpers. Keep test method bodies short and readable.
+- `authHeaders(rest)` is inherited from `AbstractIT` — no local copy needed
+- Keep test method bodies short and readable
 
 ---
 
@@ -90,11 +100,10 @@ Always extract repeated HTTP boilerplate into private helpers. Keep test method 
 ```java
 @Test
 void listReturnsPage() {
-    String token = loginAsAdmin();
     var response = rest.exchange(
         "/party/customers?page=0&size=10",
         HttpMethod.GET,
-        new HttpEntity<>(bearerHeaders(token)),
+        new HttpEntity<>(authHeaders(rest)),
         String.class
     );
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -107,12 +116,11 @@ void listReturnsPage() {
 ```java
 @Test
 void createReturns201() {
-    String token = loginAsAdmin();
-    var request = new CreateCustomerRequest("Ana", "12345678901", "ana@example.com");
+    var request = new CreateCustomerRequest("Ana", "52998224725", "ana@example.com");
     var response = rest.exchange(
         "/party/customers",
         HttpMethod.POST,
-        new HttpEntity<>(request, bearerJsonHeaders(token)),
+        new HttpEntity<>(request, authHeaders(rest)),
         CustomerResponse.class
     );
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -126,18 +134,17 @@ void createReturns201() {
 ```java
 @Test
 void updateReturns200() {
-    String token = loginAsAdmin();
     var created = rest.exchange(
         "/party/customers",
         HttpMethod.POST,
-        new HttpEntity<>(new CreateCustomerRequest("Ana", "12345678901", null), bearerJsonHeaders(token)),
+        new HttpEntity<>(new CreateCustomerRequest("Ana", "52998224725", null), authHeaders(rest)),
         CustomerResponse.class
     ).getBody();
 
     var response = rest.exchange(
         "/party/customers/" + created.id(),
         HttpMethod.PUT,
-        new HttpEntity<>(new UpdateCustomerRequest("Ana Updated", null), bearerJsonHeaders(token)),
+        new HttpEntity<>(new UpdateCustomerRequest("Ana Updated", null), authHeaders(rest)),
         CustomerResponse.class
     );
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -150,13 +157,12 @@ void updateReturns200() {
 ```java
 @Test
 void deactivateReturns204AndKeepsRecord() {
-    String token = loginAsAdmin();
     var created = /* POST to create */ ...;
 
     var deleteResponse = rest.exchange(
         "/party/customers/" + created.id(),
         HttpMethod.DELETE,
-        new HttpEntity<>(bearerHeaders(token)),
+        new HttpEntity<>(authHeaders(rest)),
         Void.class
     );
     assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
@@ -164,7 +170,7 @@ void deactivateReturns204AndKeepsRecord() {
     var getResponse = rest.exchange(
         "/party/customers/" + created.id(),
         HttpMethod.GET,
-        new HttpEntity<>(bearerHeaders(token)),
+        new HttpEntity<>(authHeaders(rest)),
         CustomerResponse.class
     );
     assertThat(getResponse.getBody().active()).isFalse();
@@ -176,11 +182,10 @@ void deactivateReturns204AndKeepsRecord() {
 ```java
 @Test
 void getUnknownIdReturns404() {
-    String token = loginAsAdmin();
     var response = rest.exchange(
         "/party/customers/99999",
         HttpMethod.GET,
-        new HttpEntity<>(bearerHeaders(token)),
+        new HttpEntity<>(authHeaders(rest)),
         String.class
     );
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -203,18 +208,20 @@ void protectedEndpointWithoutTokenReturns401() {
 @Test
 void createWithUserRoleReturns403() {
     // Create a USER-role user first with ADMIN token
-    String adminToken = loginAsAdmin();
     rest.exchange("/shared/users", HttpMethod.POST,
-        new HttpEntity<>(new CreateUserRequest("buyer", "pass1234", "Buyer", UserRole.USER), bearerJsonHeaders(adminToken)),
+        new HttpEntity<>(new CreateUserRequest("buyer", "pass1234", "Buyer", UserRole.USER), authHeaders(rest)),
         UserResponse.class);
 
     String userToken = rest.postForObject("/auth/login",
         new LoginRequest("buyer", "pass1234"), LoginResponse.class).token();
+    var userHeaders = new HttpHeaders();
+    userHeaders.setBearerAuth(userToken);
+    userHeaders.setContentType(MediaType.APPLICATION_JSON);
 
     var response = rest.exchange(
         "/party/customers",
         HttpMethod.POST,
-        new HttpEntity<>(new CreateCustomerRequest("X", "00000000001", null), bearerJsonHeaders(userToken)),
+        new HttpEntity<>(new CreateCustomerRequest("X", "52998224725", null), userHeaders),
         String.class
     );
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -226,11 +233,10 @@ void createWithUserRoleReturns403() {
 ```java
 @Test
 void createDuplicateCpfReturns409() {
-    String token = loginAsAdmin();
-    var req = new CreateCustomerRequest("Ana", "12345678901", null);
-    rest.exchange("/party/customers", HttpMethod.POST, new HttpEntity<>(req, bearerJsonHeaders(token)), CustomerResponse.class);
+    var req = new CreateCustomerRequest("Ana", "52998224725", null);
+    rest.exchange("/party/customers", HttpMethod.POST, new HttpEntity<>(req, authHeaders(rest)), CustomerResponse.class);
 
-    var second = rest.exchange("/party/customers", HttpMethod.POST, new HttpEntity<>(req, bearerJsonHeaders(token)), String.class);
+    var second = rest.exchange("/party/customers", HttpMethod.POST, new HttpEntity<>(req, authHeaders(rest)), String.class);
     assertThat(second.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 }
 ```
@@ -280,7 +286,7 @@ This test runs on every `./gradlew test` and fails the build if any module impor
 |---|---|---|
 | Integration test class | `{Controller}IT` | `CustomerControllerIT` |
 | Test method | `{subject}{condition}{expectedOutcome}` | `createWithUserRoleReturns403` |
-| Helper method | descriptive verb | `loginAsAdmin`, `bearerHeaders` |
+| Helper method | descriptive verb | `createParty`, `createLegalEntity` |
 | Module structure test | `ModularStructureTest` | (one file, root test package) |
 
 ---

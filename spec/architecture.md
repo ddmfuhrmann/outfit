@@ -145,7 +145,7 @@ Key rules:
 - `protected Customer() {}` — required by JPA; never called from business code
 - Fields assigned directly inside factory/domain methods (`customer.name = name`), not via setters
 - `@Transactional` never goes on entities — only on use cases
-- IDs: `BIGSERIAL` / `GenerationType.IDENTITY`
+- IDs: `BIGINT`, client-generated via TSID (`TsidCreator.getTsid().toLong()`) in the base class constructor — non-null from the moment the entity is instantiated, no `@GeneratedValue` needed
 - Timestamps: `Instant` in Java, `TIMESTAMPTZ` in PostgreSQL
 - Money: `BigDecimal` in Java, `NUMERIC(15,2)` in PostgreSQL — never `float` or `double`
 - Enums: `@Enumerated(EnumType.STRING)` — never ordinal
@@ -190,15 +190,6 @@ public record CustomerDeactivated(String cpf) {}
 ```
 
 Events are **never** published from use cases via `ApplicationEventPublisher`. The aggregate root registers them via `registerEvent()` inside the method that causes the state change. Spring Data publishes registered events automatically after `save()`.
-
-> **Factory-method caveat (`@PostPersist`):** When an event payload requires the aggregate's own ID (e.g. `PartyCreated(partyId, ...)`), calling `registerEvent()` inside `static create()` captures a `null` ID — the entity has not been persisted yet. Use a `@PostPersist` JPA lifecycle callback instead. With `GenerationType.IDENTITY`, Hibernate executes the INSERT immediately on `persist()`, so `getId()` is non-null when `@PostPersist` fires, and Spring Data reads `@DomainEvents` after `save()` returns — after the callback.
->
-> ```java
-> @PostPersist
-> void onPersisted() {
->     registerEvent(new PartyCreated(getId(), legalName, customer, supplier, salesperson));
-> }
-> ```
 
 > **Dirty checking caveat:** PUT and DELETE use cases rely on JPA dirty checking and do not call `save()` explicitly. This means `registerEvent()` calls inside domain methods (e.g. `deactivate()`) are stored on the entity but **not published** unless `save()` is called explicitly. When a listener needs to react to a soft-delete or update event, the use case must call `repository.save(entity)` before returning so Spring Data triggers event publication.
 
@@ -730,7 +721,7 @@ V5__party_schema.sql           ← next module adds V5
 ### Column conventions in SQL
 
 ```sql
-id          BIGSERIAL PRIMARY KEY,
+id          BIGINT PRIMARY KEY,
 created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 amount      NUMERIC(15,2) NOT NULL,
