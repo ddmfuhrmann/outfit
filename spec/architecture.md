@@ -295,6 +295,21 @@ Use cases use `@Slf4j` (Lombok). Never place loggers on entities.
 
 Never log sensitive data: passwords, password hashes, JWT tokens, or PII beyond the natural key (login, id).
 
+#### Error logging
+
+`GlobalExceptionHandler` is the sole point where errors are logged — use cases must never catch and log exceptions themselves.
+
+| Situation | Level | What to log |
+|---|---|---|
+| Unhandled exception (500) | `ERROR` | HTTP method, URI, full exception with stack trace |
+| Infrastructure failure (Elasticsearch, external service, 503) | `ERROR` | HTTP method, URI, full exception with stack trace |
+| Database constraint violation (409) | `WARN` | HTTP method, URI — no stack trace |
+| Domain argument violation (`IllegalArgumentException` → 400) | `WARN` | HTTP method, URI, exception message — no stack trace |
+| Invalid operation sequence (`IllegalStateException` → 422) | `WARN` | HTTP method, URI, exception message — no stack trace |
+| Expected client errors (404, 401, 403, 400 via DTO validation) | — | Nothing — normal application flow |
+
+Empty catch blocks are forbidden. When silencing is intentional (e.g. a security filter that must not leak information), use `log.warn` with the exception message — never the token or password.
+
 ```java
 @Slf4j
 @Service

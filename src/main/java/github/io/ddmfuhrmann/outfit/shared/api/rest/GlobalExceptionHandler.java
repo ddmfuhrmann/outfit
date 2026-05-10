@@ -12,9 +12,12 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.time.Instant;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -34,6 +37,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<Map<String, Object>> handleConflict(DataIntegrityViolationException ex, HttpServletRequest req) {
+        log.warn("Data integrity violation: {} {}", req.getMethod(), req.getRequestURI());
         return error(HttpStatus.CONFLICT, "Data integrity violation", req.getRequestURI());
     }
 
@@ -51,21 +55,25 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ElasticsearchException.class)
     ResponseEntity<Map<String, Object>> handleElasticsearch(ElasticsearchException ex, HttpServletRequest req) {
+        log.error("Elasticsearch unavailable: {} {}", req.getMethod(), req.getRequestURI(), ex);
         return error(HttpStatus.SERVICE_UNAVAILABLE, "Search service unavailable", req.getRequestURI());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<Map<String, Object>> handleDomainArgument(IllegalArgumentException ex, HttpServletRequest req) {
+        log.warn("Domain argument violation: {} {} - {}", req.getMethod(), req.getRequestURI(), ex.getMessage());
         return error(HttpStatus.BAD_REQUEST, ex.getMessage(), req.getRequestURI());
     }
 
     @ExceptionHandler(IllegalStateException.class)
     ResponseEntity<Map<String, Object>> handleDomainState(IllegalStateException ex, HttpServletRequest req) {
+        log.warn("Domain state violation: {} {} - {}", req.getMethod(), req.getRequestURI(), ex.getMessage());
         return error(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), req.getRequestURI());
     }
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<Map<String, Object>> handleGeneric(Exception ex, HttpServletRequest req) {
+        log.error("Unhandled exception: {} {}", req.getMethod(), req.getRequestURI(), ex);
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error", req.getRequestURI());
     }
 
