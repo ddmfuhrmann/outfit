@@ -5,8 +5,6 @@ import github.io.ddmfuhrmann.outfit.party.domain.model.ContactType;
 import github.io.ddmfuhrmann.outfit.party.domain.model.PersonType;
 import github.io.ddmfuhrmann.outfit.party.domain.repository.PartyRepository;
 import github.io.ddmfuhrmann.outfit.shared.AbstractIT;
-import github.io.ddmfuhrmann.outfit.shared.application.dto.LoginRequest;
-import github.io.ddmfuhrmann.outfit.shared.application.dto.LoginResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -49,7 +47,7 @@ class PartyControllerIT extends AbstractIT {
 
     private Long createParty() {
         var response = rest.exchange("/party", HttpMethod.POST,
-                new HttpEntity<>(legalEntityRequest(), authHeaders()), PartyCreatedResponse.class);
+                new HttpEntity<>(legalEntityRequest(), authHeaders(rest)), PartyCreatedResponse.class);
         assertThat(response.getBody()).isNotNull();
         return response.getBody().id();
     }
@@ -64,7 +62,7 @@ class PartyControllerIT extends AbstractIT {
                 true, false, false,
                 null, null, null);
         var response = rest.exchange("/party", HttpMethod.POST,
-                new HttpEntity<>(request, authHeaders()), String.class);
+                new HttpEntity<>(request, authHeaders(rest)), String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
@@ -76,7 +74,7 @@ class PartyControllerIT extends AbstractIT {
                 true, false, false,
                 null, null, null);
         var response = rest.exchange("/party", HttpMethod.POST,
-                new HttpEntity<>(request, authHeaders()), String.class);
+                new HttpEntity<>(request, authHeaders(rest)), String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
@@ -88,7 +86,7 @@ class PartyControllerIT extends AbstractIT {
                 false, false, false,
                 null, null, null);
         var response = rest.exchange("/party", HttpMethod.POST,
-                new HttpEntity<>(request, authHeaders()), String.class);
+                new HttpEntity<>(request, authHeaders(rest)), String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
@@ -97,7 +95,7 @@ class PartyControllerIT extends AbstractIT {
     @Test
     void createPartyReturns201WithId() {
         var response = rest.exchange("/party", HttpMethod.POST,
-                new HttpEntity<>(legalEntityRequest(), authHeaders()), PartyCreatedResponse.class);
+                new HttpEntity<>(legalEntityRequest(), authHeaders(rest)), PartyCreatedResponse.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().id()).isPositive();
@@ -106,7 +104,7 @@ class PartyControllerIT extends AbstractIT {
     @Test
     void createIndividualPartyReturns201WithId() {
         var response = rest.exchange("/party", HttpMethod.POST,
-                new HttpEntity<>(individualRequest(), authHeaders()), PartyCreatedResponse.class);
+                new HttpEntity<>(individualRequest(), authHeaders(rest)), PartyCreatedResponse.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().id()).isPositive();
@@ -119,7 +117,7 @@ class PartyControllerIT extends AbstractIT {
         Long id = createParty();
         var update = new UpdatePartyRequest("Acme Updated Ltda", "Acme Updated", null);
         var response = rest.exchange("/party/" + id, HttpMethod.PUT,
-                new HttpEntity<>(update, authHeaders()), Void.class);
+                new HttpEntity<>(update, authHeaders(rest)), Void.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         String legalName = transactionTemplate.execute(tx ->
@@ -133,7 +131,7 @@ class PartyControllerIT extends AbstractIT {
     void deactivatePartyReturns204() {
         Long id = createParty();
         var response = rest.exchange("/party/" + id, HttpMethod.DELETE,
-                new HttpEntity<>(authHeaders()), Void.class);
+                new HttpEntity<>(authHeaders(rest)), Void.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         boolean active = Boolean.TRUE.equals(transactionTemplate.execute(tx ->
@@ -144,10 +142,10 @@ class PartyControllerIT extends AbstractIT {
     @Test
     void deactivateAlreadyInactivePartyReturns422() {
         Long id = createParty();
-        rest.exchange("/party/" + id, HttpMethod.DELETE, new HttpEntity<>(authHeaders()), Void.class);
+        rest.exchange("/party/" + id, HttpMethod.DELETE, new HttpEntity<>(authHeaders(rest)), Void.class);
 
         var response = rest.exchange("/party/" + id, HttpMethod.DELETE,
-                new HttpEntity<>(authHeaders()), String.class);
+                new HttpEntity<>(authHeaders(rest)), String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
@@ -158,7 +156,7 @@ class PartyControllerIT extends AbstractIT {
         Long id = createParty();
         var req = new AddAddressRequest("Rua A", "Centro", "01310100", "10", null, null);
         var response = rest.exchange("/party/" + id + "/addresses", HttpMethod.POST,
-                new HttpEntity<>(req, authHeaders()), Void.class);
+                new HttpEntity<>(req, authHeaders(rest)), Void.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         Integer addressCount = transactionTemplate.execute(tx ->
@@ -171,13 +169,13 @@ class PartyControllerIT extends AbstractIT {
         Long id = createParty();
         var req = new AddAddressRequest("Rua B", "Vila", "01310200", "20", null, null);
         rest.exchange("/party/" + id + "/addresses", HttpMethod.POST,
-                new HttpEntity<>(req, authHeaders()), Void.class);
+                new HttpEntity<>(req, authHeaders(rest)), Void.class);
 
         Long addressId = transactionTemplate.execute(tx ->
                 partyRepository.findById(id).orElseThrow().getAddresses().getFirst().getId());
 
         var response = rest.exchange("/party/" + id + "/addresses/" + addressId, HttpMethod.DELETE,
-                new HttpEntity<>(authHeaders()), Void.class);
+                new HttpEntity<>(authHeaders(rest)), Void.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         Integer addressCount = transactionTemplate.execute(tx ->
@@ -192,7 +190,7 @@ class PartyControllerIT extends AbstractIT {
         Long id = createParty();
         var req = new AddContactRequest(ContactType.EMAIL, "contato@acme.com");
         var response = rest.exchange("/party/" + id + "/contacts", HttpMethod.POST,
-                new HttpEntity<>(req, authHeaders()), Void.class);
+                new HttpEntity<>(req, authHeaders(rest)), Void.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         Integer contactCount = transactionTemplate.execute(tx ->
@@ -205,13 +203,13 @@ class PartyControllerIT extends AbstractIT {
         Long id = createParty();
         var req = new AddContactRequest(ContactType.PHONE, "11999999999");
         rest.exchange("/party/" + id + "/contacts", HttpMethod.POST,
-                new HttpEntity<>(req, authHeaders()), Void.class);
+                new HttpEntity<>(req, authHeaders(rest)), Void.class);
 
         Long contactId = transactionTemplate.execute(tx ->
                 partyRepository.findById(id).orElseThrow().getContacts().getFirst().getId());
 
         var response = rest.exchange("/party/" + id + "/contacts/" + contactId, HttpMethod.DELETE,
-                new HttpEntity<>(authHeaders()), Void.class);
+                new HttpEntity<>(authHeaders(rest)), Void.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         Integer contactCount = transactionTemplate.execute(tx ->
@@ -219,14 +217,4 @@ class PartyControllerIT extends AbstractIT {
         assertThat(contactCount).isZero();
     }
 
-    // --- auth helper ---
-
-    private HttpHeaders authHeaders() {
-        String token = rest.postForObject("/auth/login",
-                new LoginRequest("admin", "admin"), LoginResponse.class).token();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return headers;
-    }
 }
