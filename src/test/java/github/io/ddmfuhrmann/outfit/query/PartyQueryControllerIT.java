@@ -5,8 +5,6 @@ import github.io.ddmfuhrmann.outfit.party.domain.model.ContactType;
 import github.io.ddmfuhrmann.outfit.party.domain.model.PersonType;
 import github.io.ddmfuhrmann.outfit.query.application.dto.PartyDocument;
 import github.io.ddmfuhrmann.outfit.shared.AbstractIT;
-import github.io.ddmfuhrmann.outfit.shared.application.dto.LoginRequest;
-import github.io.ddmfuhrmann.outfit.shared.application.dto.LoginResponse;
 import github.io.ddmfuhrmann.outfit.shared.application.dto.PageResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +29,7 @@ class PartyQueryControllerIT extends AbstractIT {
                 true, false, false,
                 null, null, null);
         var resp = rest.exchange("/party", HttpMethod.POST,
-                new HttpEntity<>(req, authHeaders()), PartyCreatedResponse.class);
+                new HttpEntity<>(req, authHeaders(rest)), PartyCreatedResponse.class);
         assertThat(resp.getBody()).isNotNull();
         return resp.getBody().id();
     }
@@ -43,7 +41,7 @@ class PartyQueryControllerIT extends AbstractIT {
                 true, false, false,
                 null, null, null);
         var resp = rest.exchange("/party", HttpMethod.POST,
-                new HttpEntity<>(req, authHeaders()), PartyCreatedResponse.class);
+                new HttpEntity<>(req, authHeaders(rest)), PartyCreatedResponse.class);
         assertThat(resp.getBody()).isNotNull();
         return resp.getBody().id();
     }
@@ -53,7 +51,7 @@ class PartyQueryControllerIT extends AbstractIT {
         Long id = createLegalEntity();
 
         var resp = rest.exchange("/party/" + id, HttpMethod.GET,
-                new HttpEntity<>(authHeaders()), PartyDocument.class);
+                new HttpEntity<>(authHeaders(rest)), PartyDocument.class);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resp.getBody()).isNotNull();
@@ -68,7 +66,7 @@ class PartyQueryControllerIT extends AbstractIT {
         Long id = createLegalEntity();
 
         var resp = rest.exchange("/party?q=Acme+Ltda", HttpMethod.GET,
-                new HttpEntity<>(authHeaders()),
+                new HttpEntity<>(authHeaders(rest)),
                 new ParameterizedTypeReference<PageResponse<PartyDocument>>() {});
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -83,7 +81,7 @@ class PartyQueryControllerIT extends AbstractIT {
         Long id = createCustomer();
 
         var resp = rest.exchange("/party?role=customer", HttpMethod.GET,
-                new HttpEntity<>(authHeaders()),
+                new HttpEntity<>(authHeaders(rest)),
                 new ParameterizedTypeReference<PageResponse<PartyDocument>>() {});
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -99,10 +97,10 @@ class PartyQueryControllerIT extends AbstractIT {
 
         var update = new UpdatePartyRequest("Acme Updated Ltda", "Acme Updated", null);
         rest.exchange("/party/" + id, HttpMethod.PUT,
-                new HttpEntity<>(update, authHeaders()), Void.class);
+                new HttpEntity<>(update, authHeaders(rest)), Void.class);
 
         var resp = rest.exchange("/party/" + id, HttpMethod.GET,
-                new HttpEntity<>(authHeaders()), PartyDocument.class);
+                new HttpEntity<>(authHeaders(rest)), PartyDocument.class);
 
         assertThat(resp.getBody()).isNotNull();
         assertThat(resp.getBody().legalName()).isEqualTo("Acme Updated Ltda");
@@ -113,10 +111,10 @@ class PartyQueryControllerIT extends AbstractIT {
         Long id = createLegalEntity();
 
         rest.exchange("/party/" + id, HttpMethod.DELETE,
-                new HttpEntity<>(authHeaders()), Void.class);
+                new HttpEntity<>(authHeaders(rest)), Void.class);
 
         var resp = rest.exchange("/party/" + id, HttpMethod.GET,
-                new HttpEntity<>(authHeaders()), PartyDocument.class);
+                new HttpEntity<>(authHeaders(rest)), PartyDocument.class);
 
         assertThat(resp.getBody()).isNotNull();
         assertThat(resp.getBody().active()).isFalse();
@@ -128,10 +126,10 @@ class PartyQueryControllerIT extends AbstractIT {
 
         var req = new AddAddressRequest("Rua A", "Centro", "01310100", "10", null, null);
         rest.exchange("/party/" + id + "/addresses", HttpMethod.POST,
-                new HttpEntity<>(req, authHeaders()), Void.class);
+                new HttpEntity<>(req, authHeaders(rest)), Void.class);
 
         var resp = rest.exchange("/party/" + id, HttpMethod.GET,
-                new HttpEntity<>(authHeaders()), PartyDocument.class);
+                new HttpEntity<>(authHeaders(rest)), PartyDocument.class);
 
         assertThat(resp.getBody()).isNotNull();
         assertThat(resp.getBody().addresses()).hasSize(1);
@@ -144,18 +142,18 @@ class PartyQueryControllerIT extends AbstractIT {
 
         var req = new AddAddressRequest("Rua B", "Vila", "01310200", "20", null, null);
         rest.exchange("/party/" + id + "/addresses", HttpMethod.POST,
-                new HttpEntity<>(req, authHeaders()), Void.class);
+                new HttpEntity<>(req, authHeaders(rest)), Void.class);
 
         var docResp = rest.exchange("/party/" + id, HttpMethod.GET,
-                new HttpEntity<>(authHeaders()), PartyDocument.class);
+                new HttpEntity<>(authHeaders(rest)), PartyDocument.class);
         assertThat(docResp.getBody()).isNotNull();
         Long addressId = docResp.getBody().addresses().getFirst().id();
 
         rest.exchange("/party/" + id + "/addresses/" + addressId, HttpMethod.DELETE,
-                new HttpEntity<>(authHeaders()), Void.class);
+                new HttpEntity<>(authHeaders(rest)), Void.class);
 
         var afterResp = rest.exchange("/party/" + id, HttpMethod.GET,
-                new HttpEntity<>(authHeaders()), PartyDocument.class);
+                new HttpEntity<>(authHeaders(rest)), PartyDocument.class);
         assertThat(afterResp.getBody()).isNotNull();
         assertThat(afterResp.getBody().addresses()).isEmpty();
     }
@@ -166,10 +164,10 @@ class PartyQueryControllerIT extends AbstractIT {
 
         var req = new AddContactRequest(ContactType.EMAIL, "contato@acme.com");
         rest.exchange("/party/" + id + "/contacts", HttpMethod.POST,
-                new HttpEntity<>(req, authHeaders()), Void.class);
+                new HttpEntity<>(req, authHeaders(rest)), Void.class);
 
         var resp = rest.exchange("/party/" + id, HttpMethod.GET,
-                new HttpEntity<>(authHeaders()), PartyDocument.class);
+                new HttpEntity<>(authHeaders(rest)), PartyDocument.class);
 
         assertThat(resp.getBody()).isNotNull();
         assertThat(resp.getBody().contacts()).hasSize(1);
@@ -182,18 +180,18 @@ class PartyQueryControllerIT extends AbstractIT {
 
         var req = new AddContactRequest(ContactType.PHONE, "11999999999");
         rest.exchange("/party/" + id + "/contacts", HttpMethod.POST,
-                new HttpEntity<>(req, authHeaders()), Void.class);
+                new HttpEntity<>(req, authHeaders(rest)), Void.class);
 
         var docResp = rest.exchange("/party/" + id, HttpMethod.GET,
-                new HttpEntity<>(authHeaders()), PartyDocument.class);
+                new HttpEntity<>(authHeaders(rest)), PartyDocument.class);
         assertThat(docResp.getBody()).isNotNull();
         Long contactId = docResp.getBody().contacts().getFirst().id();
 
         rest.exchange("/party/" + id + "/contacts/" + contactId, HttpMethod.DELETE,
-                new HttpEntity<>(authHeaders()), Void.class);
+                new HttpEntity<>(authHeaders(rest)), Void.class);
 
         var afterResp = rest.exchange("/party/" + id, HttpMethod.GET,
-                new HttpEntity<>(authHeaders()), PartyDocument.class);
+                new HttpEntity<>(authHeaders(rest)), PartyDocument.class);
         assertThat(afterResp.getBody()).isNotNull();
         assertThat(afterResp.getBody().contacts()).isEmpty();
     }
@@ -201,16 +199,8 @@ class PartyQueryControllerIT extends AbstractIT {
     @Test
     void getByIdForNonExistentPartyReturns404() {
         var resp = rest.exchange("/party/999999", HttpMethod.GET,
-                new HttpEntity<>(authHeaders()), String.class);
+                new HttpEntity<>(authHeaders(rest)), String.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    private HttpHeaders authHeaders() {
-        String token = rest.postForObject("/auth/login",
-                new LoginRequest("admin", "admin"), LoginResponse.class).token();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return headers;
-    }
 }

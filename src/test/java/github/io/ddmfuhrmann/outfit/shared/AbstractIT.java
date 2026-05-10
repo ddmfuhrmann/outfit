@@ -1,6 +1,11 @@
 package github.io.ddmfuhrmann.outfit.shared;
 
+import github.io.ddmfuhrmann.outfit.shared.application.dto.LoginRequest;
+import github.io.ddmfuhrmann.outfit.shared.application.dto.LoginResponse;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -28,5 +33,18 @@ public abstract class AbstractIT {
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("elasticsearch.uris", () -> "http://" + ELASTIC.getHttpHostAddress());
+    }
+
+    private static String cachedToken;
+
+    protected HttpHeaders authHeaders(TestRestTemplate rest) {
+        if (cachedToken == null) {
+            cachedToken = rest.postForObject("/auth/login",
+                    new LoginRequest("admin", "admin"), LoginResponse.class).token();
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(cachedToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return headers;
     }
 }

@@ -3,8 +3,6 @@ package github.io.ddmfuhrmann.outfit.catalog;
 import github.io.ddmfuhrmann.outfit.catalog.application.dto.ColorRequest;
 import github.io.ddmfuhrmann.outfit.catalog.application.dto.ColorResponse;
 import github.io.ddmfuhrmann.outfit.shared.AbstractIT;
-import github.io.ddmfuhrmann.outfit.shared.application.dto.LoginRequest;
-import github.io.ddmfuhrmann.outfit.shared.application.dto.LoginResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -19,7 +17,7 @@ class ColorControllerIT extends AbstractIT {
 
     @Test
     void createColorReturns201() {
-        HttpHeaders headers = authHeaders();
+        HttpHeaders headers = authHeaders(rest);
         var response = rest.exchange("/catalog/colors", HttpMethod.POST,
                 new HttpEntity<>(new ColorRequest("Azul"), headers), ColorResponse.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -29,7 +27,7 @@ class ColorControllerIT extends AbstractIT {
 
     @Test
     void listColorsReturns200() {
-        HttpHeaders headers = authHeaders();
+        HttpHeaders headers = authHeaders(rest);
         rest.exchange("/catalog/colors", HttpMethod.POST,
                 new HttpEntity<>(new ColorRequest("Vermelho"), headers), ColorResponse.class);
         var response = rest.exchange("/catalog/colors?page=0&size=20", HttpMethod.GET,
@@ -40,7 +38,7 @@ class ColorControllerIT extends AbstractIT {
 
     @Test
     void getColorReturns200() {
-        HttpHeaders headers = authHeaders();
+        HttpHeaders headers = authHeaders(rest);
         ColorResponse created = rest.exchange("/catalog/colors", HttpMethod.POST,
                 new HttpEntity<>(new ColorRequest("Verde"), headers), ColorResponse.class).getBody();
         assertThat(created).isNotNull();
@@ -54,7 +52,7 @@ class ColorControllerIT extends AbstractIT {
 
     @Test
     void getColorNotFoundReturns404() {
-        HttpHeaders headers = authHeaders();
+        HttpHeaders headers = authHeaders(rest);
         var response = rest.exchange("/catalog/colors/999999", HttpMethod.GET,
                 new HttpEntity<>(headers), String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -62,7 +60,7 @@ class ColorControllerIT extends AbstractIT {
 
     @Test
     void renameColorReturns200() {
-        HttpHeaders headers = authHeaders();
+        HttpHeaders headers = authHeaders(rest);
         ColorResponse created = rest.exchange("/catalog/colors", HttpMethod.POST,
                 new HttpEntity<>(new ColorRequest("Preto"), headers), ColorResponse.class).getBody();
         assertThat(created).isNotNull();
@@ -76,7 +74,7 @@ class ColorControllerIT extends AbstractIT {
 
     @Test
     void deleteColorReturns204() {
-        HttpHeaders headers = authHeaders();
+        HttpHeaders headers = authHeaders(rest);
         ColorResponse created = rest.exchange("/catalog/colors", HttpMethod.POST,
                 new HttpEntity<>(new ColorRequest("Rosa"), headers), ColorResponse.class).getBody();
         assertThat(created).isNotNull();
@@ -92,7 +90,7 @@ class ColorControllerIT extends AbstractIT {
 
     @Test
     void deleteColorNotFoundReturns404() {
-        HttpHeaders headers = authHeaders();
+        HttpHeaders headers = authHeaders(rest);
         var response = rest.exchange("/catalog/colors/999999", HttpMethod.DELETE,
                 new HttpEntity<>(headers), String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -100,18 +98,10 @@ class ColorControllerIT extends AbstractIT {
 
     @Test
     void createColorWithBlankDescriptionReturns400() {
-        HttpHeaders headers = authHeaders();
+        HttpHeaders headers = authHeaders(rest);
         var response = rest.exchange("/catalog/colors", HttpMethod.POST,
                 new HttpEntity<>(new ColorRequest(""), headers), String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
-    private HttpHeaders authHeaders() {
-        String token = rest.postForObject("/auth/login",
-                new LoginRequest("admin", "admin"), LoginResponse.class).token();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return headers;
-    }
 }
