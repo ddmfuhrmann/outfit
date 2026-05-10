@@ -16,13 +16,12 @@ Depends on: none
       person_type        VARCHAR(20)    NOT NULL,
       cnpj               VARCHAR(14),
       cpf                VARCHAR(11),
-      company_name       VARCHAR(200),
-      trade_name         VARCHAR(200),
-      is_customer        BOOLEAN        NOT NULL DEFAULT FALSE,
-      is_supplier        BOOLEAN        NOT NULL DEFAULT FALSE,
-      is_salesperson     BOOLEAN        NOT NULL DEFAULT FALSE,
+      legal_name       VARCHAR(200),
+      name               VARCHAR(200),
+      customer           BOOLEAN        NOT NULL DEFAULT FALSE,
+      supplier           BOOLEAN        NOT NULL DEFAULT FALSE,
+      salesperson        BOOLEAN        NOT NULL DEFAULT FALSE,
       commission_percent NUMERIC(5,2),
-      base_salary        NUMERIC(15,2),
       active             BOOLEAN        NOT NULL DEFAULT TRUE,
       created_at         TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
       updated_at         TIMESTAMPTZ    NOT NULL DEFAULT NOW()
@@ -57,8 +56,13 @@ Depends on: none
 
 Events live in `party/domain/event/`.
 
-- [ ] `PartyCreated.java` — `record PartyCreated(Long partyId, String companyName, boolean isCustomer, boolean isSupplier, boolean isSalesperson) {}`
+- [ ] `PartyCreated.java` — `record PartyCreated(Long partyId, String legalName, boolean customer, boolean supplier, boolean salesperson) {}`
+- [ ] `PartyUpdated.java` — `record PartyUpdated(Long partyId) {}`
 - [ ] `PartyDeactivated.java` — `record PartyDeactivated(Long partyId) {}`
+- [ ] `PartyAddressAdded.java` — `record PartyAddressAdded(Long partyId) {}` — no addressId: child id is null at registerEvent() time (pre-flush); the query module re-indexes the full document from partyId alone
+- [ ] `PartyAddressRemoved.java` — `record PartyAddressRemoved(Long partyId, Long addressId) {}` — addressId is available because it is passed in as a method parameter from an already-persisted entity
+- [ ] `PartyContactAdded.java` — `record PartyContactAdded(Long partyId) {}` — same rationale as PartyAddressAdded
+- [ ] `PartyContactRemoved.java` — `record PartyContactRemoved(Long partyId, Long contactId) {}`
 
 ---
 
@@ -68,6 +72,11 @@ Events live in `party/domain/event/`.
 
 - [ ] `party/domain/model/PersonType.java` — `LEGAL_ENTITY`, `INDIVIDUAL` (stored as `VARCHAR`)
 - [ ] `party/domain/model/ContactType.java` — `PHONE`, `EMAIL`, `WHATSAPP`, `OTHER` (stored as `VARCHAR`)
+
+### Value objects
+
+- [ ] `party/domain/model/Cpf.java` — `@Embeddable`; column `cpf VARCHAR(11)`; `static Cpf.of(String raw)` strips non-digits, validates length == 11, rejects all-same-digit sequences, and verifies both check digits via Módulo 11; `protected Cpf()` for JPA; `String value()` accessor
+- [ ] `party/domain/model/Cnpj.java` — `@Embeddable`; column `cnpj VARCHAR(14)`; `static Cnpj.of(String raw)` strips non-digits, validates length == 14, rejects all-same-digit sequences, and verifies both check digits via Módulo 11; `protected Cnpj()` for JPA; `String value()` accessor
 
 ### Address (child entity — extends `BaseEntity`)
 
@@ -86,27 +95,24 @@ Events live in `party/domain/event/`.
 ### Party (aggregate root — extends `BaseAggregate<Party>`)
 
 - [ ] `party/domain/model/Party.java`
-  - Fields: `personType`, `cnpj`, `cpf`, `companyName`, `tradeName`, `isCustomer`, `isSupplier`, `isSalesperson`, `commissionPercent`, `baseSalary`, `active`
+  - Fields: `personType`, `cnpj` (`Cnpj` value object, `@Embedded`), `cpf` (`Cpf` value object, `@Embedded`), `legalName`, `name`, `customer`, `supplier`, `salesperson`, `commissionPercent`, `active`
   - `@OneToMany(mappedBy = "partyId", cascade = CascadeType.ALL, orphanRemoval = true)` for addresses and contacts
   - `protected Party() {}` for JPA
-  - `static Party.create(PersonType, cnpj, cpf, companyName, tradeName, isCustomer, isSupplier, isSalesperson, commissionPercent, baseSalary)` — `LEGAL_ENTITY` requires cnpj + companyName; `INDIVIDUAL` requires cpf + companyName; at least one role flag must be true; registers `PartyCreated`
-  - `void updateProfile(String companyName, String tradeName, BigDecimal commissionPercent, BigDecimal baseSalary)`
+  - `static Party.builder()` — returns a `Party.Builder`; `build()` enforces all invariants (`LEGAL_ENTITY` requires cnpj + legalName; `INDIVIDUAL` requires cpf + legalName; at least one role must be true) and does NOT register `PartyCreated` (getId() is null pre-persist)
+  - `@PostPersist void onPersisted()` — registers `PartyCreated(getId(), ...)` after the INSERT; with IDENTITY strategy Hibernate executes the INSERT immediately on persist, so getId() is non-null before Spring Data reads @DomainEvents after save() returns
+  - `void updateProfile(String legalName, String name, BigDecimal commissionPercent)` — registers `PartyUpdated`
   - `void deactivate()` — guard already inactive; registers `PartyDeactivated`
-  - `Address addAddress(String street, String neighborhood, String zipCode, String number, String complement, Long cityId)`
-  - `void removeAddress(Long addressId)` — guard: throw `IllegalStateException` if not found in collection
-  - `Contact addContact(ContactType classification, String description)`
-  - `void removeContact(Long contactId)`
+  - `Address addAddress(String street, String neighborhood, String zipCode, String number, String complement, Long cityId)` — registers `PartyAddressAdded(getId())`
+  - `void removeAddress(Long addressId)` — guard: throw `IllegalStateException` if not found; registers `PartyAddressRemoved(getId(), addressId)`
+  - `Contact addContact(ContactType classification, String description)` — registers `PartyContactAdded(getId())`
+  - `void removeContact(Long contactId)` — guard: throw `IllegalStateException` if not found; registers `PartyContactRemoved(getId(), contactId)`
 
 ---
 
 ## 4. Repositories
 
 - [ ] `party/domain/repository/PartyRepository.java`
-  - `JpaRepository<Party, Long>`
-  - `Page<Party> findAllByIsCustomerTrue(Pageable)`
-  - `Page<Party> findAllByIsSupplierTrue(Pageable)`
-  - `Page<Party> findAllByIsSalespersonTrue(Pageable)`
-  - `Page<Party> findByCompanyNameContainingIgnoreCase(String name, Pageable)`
+  - `JpaRepository<Party, Long>` — no custom query methods needed; write-side use cases only use `findById`
 
 ---
 

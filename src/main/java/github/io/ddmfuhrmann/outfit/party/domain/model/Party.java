@@ -1,0 +1,158 @@
+package github.io.ddmfuhrmann.outfit.party.domain.model;
+
+import github.io.ddmfuhrmann.outfit.party.domain.event.*;
+import github.io.ddmfuhrmann.outfit.shared.domain.model.BaseAggregate;
+import jakarta.persistence.*;
+import lombok.Getter;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+@Getter
+@Entity
+@Table(name = "party")
+public class Party extends BaseAggregate<Party> {
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "person_type", nullable = false, length = 20)
+    private PersonType personType;
+
+    @Embedded
+    private Cnpj cnpj;
+
+    @Embedded
+    private Cpf cpf;
+
+    @Column(name = "legal_name", length = 200)
+    private String legalName;
+
+    @Column(name = "name", length = 200)
+    private String name;
+
+    @Column(name = "customer", nullable = false)
+    private boolean customer;
+
+    @Column(name = "supplier", nullable = false)
+    private boolean supplier;
+
+    @Column(name = "salesperson", nullable = false)
+    private boolean salesperson;
+
+    @Column(name = "commission_percent", precision = 5, scale = 2)
+    private BigDecimal commissionPercent;
+
+    @Column(nullable = false)
+    private boolean active;
+
+    @OneToMany(mappedBy = "partyId", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Address> addresses = new ArrayList<>();
+
+    @OneToMany(mappedBy = "partyId", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Contact> contacts = new ArrayList<>();
+
+    protected Party() {}
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private PersonType personType;
+        private String cnpj;
+        private String cpf;
+        private String legalName;
+        private String name;
+        private boolean customer;
+        private boolean supplier;
+        private boolean salesperson;
+        private BigDecimal commissionPercent;
+
+        private Builder() {}
+
+        public Builder personType(PersonType personType) { this.personType = personType; return this; }
+        public Builder cnpj(String cnpj)                 { this.cnpj = cnpj;             return this; }
+        public Builder cpf(String cpf)                   { this.cpf = cpf;               return this; }
+        public Builder legalName(String legalName)       { this.legalName = legalName;   return this; }
+        public Builder name(String name)                 { this.name = name;             return this; }
+        public Builder customer(boolean customer)        { this.customer = customer;     return this; }
+        public Builder supplier(boolean supplier)        { this.supplier = supplier;     return this; }
+        public Builder salesperson(boolean salesperson)  { this.salesperson = salesperson; return this; }
+        public Builder commissionPercent(BigDecimal v)   { this.commissionPercent = v;   return this; }
+
+        public Party build() {
+            if (personType == null) throw new IllegalArgumentException("personType is required");
+            if (legalName == null || legalName.isBlank()) throw new IllegalArgumentException("legalName is required");
+            if (!customer && !supplier && !salesperson)
+                throw new IllegalArgumentException("at least one role must be true");
+
+            var party = new Party();
+            party.personType = personType;
+            party.cnpj = personType == PersonType.LEGAL_ENTITY ? Cnpj.of(cnpj) : null;
+            party.cpf  = personType == PersonType.INDIVIDUAL   ? Cpf.of(cpf)   : null;
+            party.legalName = legalName.trim();
+            party.name = name;
+            party.customer = customer;
+            party.supplier = supplier;
+            party.salesperson = salesperson;
+            party.commissionPercent = commissionPercent;
+            party.active = true;
+            return party;
+        }
+    }
+
+    // Registers PartyCreated after the INSERT so getId() is non-null (IDENTITY strategy assigns ID on persist).
+    // Spring Data reads @DomainEvents after save() returns, which is after this callback fires.
+    @PostPersist
+    void onPersisted() {
+        registerEvent(new PartyCreated(getId(), legalName, customer, supplier, salesperson));
+    }
+
+    public void updateProfile(String legalName, String name,
+                              BigDecimal commissionPercent) {
+        if (legalName == null || legalName.isBlank()) throw new IllegalArgumentException("legalName is required");
+        this.legalName = legalName.trim();
+        this.name = name;
+        this.commissionPercent = commissionPercent;
+        registerEvent(new PartyUpdated(getId()));
+    }
+
+    public void deactivate() {
+        if (!active) throw new IllegalStateException("party is already inactive");
+        this.active = false;
+        registerEvent(new PartyDeactivated(getId()));
+    }
+
+    public Address addAddress(String street, String neighborhood, String zipCode,
+                              String number, String complement, Long cityId) {
+        var address = Address.create(getId(), street, neighborhood, zipCode, number, complement, cityId);
+        addresses.add(address);
+        registerEvent(new PartyAddressAdded(getId()));
+        return address;
+    }
+
+    public void removeAddress(Long addressId) {
+        var address = addresses.stream()
+                .filter(a -> addressId.equals(a.getId()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("address not found: " + addressId));
+        addresses.remove(address);
+        registerEvent(new PartyAddressRemoved(getId(), addressId));
+    }
+
+    public Contact addContact(ContactType classification, String description) {
+        var contact = Contact.create(getId(), classification, description);
+        contacts.add(contact);
+        registerEvent(new PartyContactAdded(getId()));
+        return contact;
+    }
+
+    public void removeContact(Long contactId) {
+        var contact = contacts.stream()
+                .filter(c -> contactId.equals(c.getId()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("contact not found: " + contactId));
+        contacts.remove(contact);
+        registerEvent(new PartyContactRemoved(getId(), contactId));
+    }
+}

@@ -36,7 +36,7 @@ Spring Modulith enforces that no module imports from another module's sub-packag
 
 `@Getter` is the only Lombok annotation allowed on entities. It generates read access without opening mutation paths.
 
-`@Setter`, `@Data`, `@Builder`, `@AllArgsConstructor`, and `@RequiredArgsConstructor` are prohibited on entities — they would bypass domain logic or expose public mutation.
+`@Setter`, `@Data`, `@Builder`, `@AllArgsConstructor`, and `@RequiredArgsConstructor` are prohibited on entities — they would bypass domain logic or expose public mutation. When an aggregate has many creation parameters, use a hand-written static inner `Builder` class: `build()` delegates to the same validation logic so all invariants stay in one place.
 
 DTOs are Java records and need no Lombok at all.
 
@@ -65,6 +65,37 @@ Both provide `id`, `createdAt`, `updatedAt` via JPA auditing. Never extend `Abst
 - Never instantiated directly from outside the root
 - No factory method exposed publicly — the root creates them via a domain method (`order.addItem(...)`)
 - Annotate with `@Getter`; no public setters
+
+**Value objects** (e.g., `Cpf`, `Cnpj`) represent domain-specific types with their own validation rules:
+- Annotated `@Embeddable` — JPA flattens their columns into the owning table, no join table
+- `protected` no-arg constructor for JPA; private regular constructor; `static of(...)` factory that validates and returns the instance
+- The `of()` factory strips formatting characters (`replaceAll("\\D", "")`) before validating, so callers can pass either formatted (`123.456.789-09`) or raw (`12345678909`) strings
+- Do **not** extend `BaseEntity` or `BaseAggregate` — value objects have no identity of their own
+- On the owning entity, annotate the field with `@Embedded`; the column name is declared inside the embeddable via `@Column`
+
+```java
+@Embeddable
+public class Cpf {
+    @Column(name = "cpf", length = 11)
+    private String value;
+
+    protected Cpf() {}
+    private Cpf(String value) { this.value = value; }
+
+    public static Cpf of(String raw) {
+        if (raw == null || raw.isBlank()) throw new IllegalArgumentException("cpf is required");
+        String digits = raw.replaceAll("\\D", "");
+        validate(digits);  // length + check-digit logic
+        return new Cpf(digits);
+    }
+
+    public String value() { return value; }
+}
+
+// In the owning entity:
+@Embedded
+private Cpf cpf;
+```
 
 **Reference data entities** (e.g., `City`) are effectively immutable from the application's perspective:
 - Factory `of(...)` method for programmatic creation (seed scripts, imports)
@@ -119,6 +150,7 @@ Key rules:
 - Money: `BigDecimal` in Java, `NUMERIC(15,2)` in PostgreSQL — never `float` or `double`
 - Enums: `@Enumerated(EnumType.STRING)` — never ordinal
 - Associations: `@ManyToOne(fetch = FetchType.LAZY)` — always lazy
+- **Boolean fields:** use plain names (`active`, `customer`, `supplier`) — never `is`-prefixed (`isActive`, `isCustomer`). Lombok's `@Getter` on a `boolean` field automatically generates the correct Java Bean accessor (`isActive()`, `isCustomer()`)
 
 ### Domain Invariants
 
@@ -158,6 +190,15 @@ public record CustomerDeactivated(String cpf) {}
 ```
 
 Events are **never** published from use cases via `ApplicationEventPublisher`. The aggregate root registers them via `registerEvent()` inside the method that causes the state change. Spring Data publishes registered events automatically after `save()`.
+
+> **Factory-method caveat (`@PostPersist`):** When an event payload requires the aggregate's own ID (e.g. `PartyCreated(partyId, ...)`), calling `registerEvent()` inside `static create()` captures a `null` ID — the entity has not been persisted yet. Use a `@PostPersist` JPA lifecycle callback instead. With `GenerationType.IDENTITY`, Hibernate executes the INSERT immediately on `persist()`, so `getId()` is non-null when `@PostPersist` fires, and Spring Data reads `@DomainEvents` after `save()` returns — after the callback.
+>
+> ```java
+> @PostPersist
+> void onPersisted() {
+>     registerEvent(new PartyCreated(getId(), legalName, customer, supplier, salesperson));
+> }
+> ```
 
 > **Dirty checking caveat:** PUT and DELETE use cases rely on JPA dirty checking and do not call `save()` explicitly. This means `registerEvent()` calls inside domain methods (e.g. `deactivate()`) are stored on the entity but **not published** unless `save()` is called explicitly. When a listener needs to react to a soft-delete or update event, the use case must call `repository.save(entity)` before returning so Spring Data triggers event publication.
 

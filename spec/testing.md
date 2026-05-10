@@ -285,6 +285,21 @@ This test runs on every `./gradlew test` and fails the build if any module impor
 
 ---
 
+## Valid Test Identifiers
+
+Domain value objects (`Cpf`, `Cnpj`) validate format **and** check digits. Tests that create parties must use real valid values — invalid ones will throw `IllegalArgumentException` at the domain layer and fail unexpectedly.
+
+Use these well-known valid numbers throughout the test suite:
+
+| Type | Formatted | Digits only |
+|---|---|---|
+| CPF | `529.982.247-25` | `52998224725` |
+| CNPJ | `11.222.333/0001-81` | `11222333000181` |
+
+Both formats are accepted — the `of()` factory strips non-digit characters before validating.
+
+---
+
 ## What Not To Do
 
 - No `@MockBean` for use cases or repositories in integration tests — test the real stack
