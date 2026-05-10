@@ -23,6 +23,7 @@ public class RenameSizeUseCase {
         var size = sizeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Size not found: " + id));
         size.rename(request.description());
+        sizeRepository.save(size);
         log.info("Size renamed: id={}, description={}", id, request.description());
         return SizeResponse.from(size);
     }

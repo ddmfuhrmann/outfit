@@ -21,13 +21,14 @@ public class DeleteCategoryUseCase {
 
     @Transactional
     public void execute(Long id) {
-        if (!categoryRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Category not found: " + id);
-        }
+        var category = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));
         if (productRepository.existsByCategoryId(id)) {
             throw new IllegalStateException("Category is in use by one or more products");
         }
-        categoryRepository.deleteById(id);
+        category.delete();
+        categoryRepository.save(category);
+        categoryRepository.delete(category);
         log.info("Category deleted: id={}", id);
     }
 }

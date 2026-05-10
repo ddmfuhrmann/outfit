@@ -21,13 +21,14 @@ public class DeleteColorUseCase {
 
     @Transactional
     public void execute(Long id) {
-        if (!colorRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Color not found: " + id);
-        }
+        var color = colorRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Color not found: " + id));
         if (productRepository.existsByColorId(id)) {
             throw new IllegalStateException("Color is in use by one or more products");
         }
-        colorRepository.deleteById(id);
+        color.delete();
+        colorRepository.save(color);
+        colorRepository.delete(color);
         log.info("Color deleted: id={}", id);
     }
 }

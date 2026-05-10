@@ -23,6 +23,7 @@ public class RenameBrandUseCase {
         var brand = brandRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Brand not found: " + id));
         brand.rename(request.description());
+        brandRepository.save(brand);
         log.info("Brand renamed: id={}, description={}", id, request.description());
         return BrandResponse.from(brand);
     }

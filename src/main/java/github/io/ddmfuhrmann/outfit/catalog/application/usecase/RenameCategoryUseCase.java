@@ -23,6 +23,7 @@ public class RenameCategoryUseCase {
         var category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));
         category.rename(request.description(), request.ncmCode());
+        categoryRepository.save(category);
         log.info("Category renamed: id={}, description={}", id, request.description());
         return CategoryResponse.from(category);
     }

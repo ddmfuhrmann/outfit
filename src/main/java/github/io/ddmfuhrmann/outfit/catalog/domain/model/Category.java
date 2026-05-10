@@ -1,5 +1,7 @@
 package github.io.ddmfuhrmann.outfit.catalog.domain.model;
 
+import github.io.ddmfuhrmann.outfit.catalog.domain.event.CategoryCreated;
+import github.io.ddmfuhrmann.outfit.catalog.domain.event.CategoryDeleted;
 import github.io.ddmfuhrmann.outfit.catalog.domain.event.CategoryRenamed;
 import github.io.ddmfuhrmann.outfit.shared.domain.model.BaseAggregate;
 import jakarta.persistence.*;
@@ -23,6 +25,7 @@ public class Category extends BaseAggregate<Category> {
         var category = new Category();
         category.description = description.trim();
         category.ncmCode = ncmCode != null ? ncmCode.trim() : null;
+        category.registerEvent(new CategoryCreated(category.getId(), category.description));
         return category;
     }
 
@@ -31,5 +34,9 @@ public class Category extends BaseAggregate<Category> {
         this.description = description.trim();
         this.ncmCode = ncmCode != null ? ncmCode.trim() : null;
         registerEvent(new CategoryRenamed(getId(), this.description));
+    }
+
+    public void delete() {
+        registerEvent(new CategoryDeleted(getId()));
     }
 }

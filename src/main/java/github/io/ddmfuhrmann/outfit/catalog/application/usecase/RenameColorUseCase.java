@@ -23,6 +23,7 @@ public class RenameColorUseCase {
         var color = colorRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Color not found: " + id));
         color.rename(request.description());
+        colorRepository.save(color);
         log.info("Color renamed: id={}, description={}", id, request.description());
         return ColorResponse.from(color);
     }

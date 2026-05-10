@@ -1,5 +1,7 @@
 package github.io.ddmfuhrmann.outfit.catalog.domain.model;
 
+import github.io.ddmfuhrmann.outfit.catalog.domain.event.BrandCreated;
+import github.io.ddmfuhrmann.outfit.catalog.domain.event.BrandDeleted;
 import github.io.ddmfuhrmann.outfit.catalog.domain.event.BrandRenamed;
 import github.io.ddmfuhrmann.outfit.shared.domain.model.BaseAggregate;
 import jakarta.persistence.*;
@@ -19,6 +21,7 @@ public class Brand extends BaseAggregate<Brand> {
         if (description == null || description.isBlank()) throw new IllegalArgumentException("description is required");
         var brand = new Brand();
         brand.description = description.trim();
+        brand.registerEvent(new BrandCreated(brand.getId(), brand.description));
         return brand;
     }
 
@@ -26,5 +29,9 @@ public class Brand extends BaseAggregate<Brand> {
         if (description == null || description.isBlank()) throw new IllegalArgumentException("description is required");
         this.description = description.trim();
         registerEvent(new BrandRenamed(getId(), this.description));
+    }
+
+    public void delete() {
+        registerEvent(new BrandDeleted(getId()));
     }
 }
