@@ -4,13 +4,21 @@ import github.io.ddmfuhrmann.outfit.shared.domain.event.UserCreated;
 import github.io.ddmfuhrmann.outfit.shared.domain.event.UserDeactivated;
 import jakarta.persistence.*;
 import lombok.Getter;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.domain.AbstractAggregateRoot;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.Instant;
 
 @Getter
 @Entity
 @Table(name = "app_user")
-public class User extends BaseAggregate<User> {
+@EntityListeners(AuditingEntityListener.class)
+public class User extends AbstractAggregateRoot<User> {
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Id
+    @Column(nullable = false, length = 100)
     private String login;
 
     @Column(nullable = false, length = 255)
@@ -25,6 +33,13 @@ public class User extends BaseAggregate<User> {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @CreatedDate
+    @Column(updatable = false)
+    private Instant createdAt;
+
+    @LastModifiedDate
+    private Instant updatedAt;
 
     protected User() {}
 

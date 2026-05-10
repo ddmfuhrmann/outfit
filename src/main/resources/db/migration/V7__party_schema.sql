@@ -1,5 +1,5 @@
 CREATE TABLE party (
-    id                 BIGSERIAL PRIMARY KEY,
+    id                 BIGINT         PRIMARY KEY,
     person_type        VARCHAR(20)    NOT NULL,
     cnpj               VARCHAR(14),
     cpf                VARCHAR(11),
@@ -15,20 +15,20 @@ CREATE TABLE party (
 );
 
 CREATE TABLE party_address (
-    id           BIGSERIAL PRIMARY KEY,
-    party_id     BIGINT       NOT NULL REFERENCES party(id),
-    street       VARCHAR(300),
-    neighborhood VARCHAR(200),
-    zip_code     VARCHAR(8),
-    number       VARCHAR(20),
-    complement   VARCHAR(100),
-    city_id      BIGINT       REFERENCES city(id),
-    created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    id              BIGINT       PRIMARY KEY,
+    party_id        BIGINT       NOT NULL REFERENCES party(id),
+    street          VARCHAR(300),
+    neighborhood    VARCHAR(200),
+    zip_code        VARCHAR(8),
+    number          VARCHAR(20),
+    complement      VARCHAR(100),
+    city_ibge_code  INTEGER      REFERENCES city(ibge_city_code),
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE party_contact (
-    id             BIGSERIAL PRIMARY KEY,
+    id             BIGINT       PRIMARY KEY,
     party_id       BIGINT       NOT NULL REFERENCES party(id),
     classification VARCHAR(30)  NOT NULL,
     description    VARCHAR(200) NOT NULL,

@@ -17,10 +17,10 @@ public class DeactivateUserUseCase {
     }
 
     @Transactional
-    public void execute(Long id) {
-        var user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User " + id + " not found"));
+    public void execute(String login) {
+        var user = userRepository.findById(login)
+                .orElseThrow(() -> new ResourceNotFoundException("User " + login + " not found"));
         user.deactivate();
-        log.info("User deactivated: id={}", id);
+        log.info("User deactivated: login={}", login);
     }
 }

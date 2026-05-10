@@ -22,9 +22,7 @@ public class AddAddressUseCase {
         var party = partyRepository.findById(partyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Party not found: " + partyId));
         party.addAddress(request.street(), request.neighborhood(), request.zipCode(),
-                request.number(), request.complement(), request.cityId());
-        partyRepository.saveAndFlush(party);
-        party.onAddressAdded();
+                request.number(), request.complement(), request.cityIbgeCode());
         partyRepository.save(party);
         log.info("Address added to party: partyId={}", partyId);
     }

@@ -70,7 +70,7 @@ class UserControllerIT extends AbstractIT {
                 UserResponse.class).getBody();
         assertThat(created).isNotNull();
 
-        var updated = rest.exchange("/shared/users/" + created.id(), HttpMethod.PUT,
+        var updated = rest.exchange("/shared/users/" + created.login(), HttpMethod.PUT,
                 new HttpEntity<>(new UpdateUserRequest("Updated Name", null), headers),
                 UserResponse.class);
         assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -89,11 +89,11 @@ class UserControllerIT extends AbstractIT {
                 UserResponse.class).getBody();
         assertThat(created).isNotNull();
 
-        var deleteResponse = rest.exchange("/shared/users/" + created.id(), HttpMethod.DELETE,
+        var deleteResponse = rest.exchange("/shared/users/" + created.login(), HttpMethod.DELETE,
                 new HttpEntity<>(headers), Void.class);
         assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
-        var getResponse = rest.exchange("/shared/users/" + created.id(), HttpMethod.GET,
+        var getResponse = rest.exchange("/shared/users/" + created.login(), HttpMethod.GET,
                 new HttpEntity<>(headers), UserResponse.class);
         assertThat(getResponse.getBody()).isNotNull();
         assertThat(getResponse.getBody().active()).isFalse();
@@ -110,9 +110,9 @@ class UserControllerIT extends AbstractIT {
                 UserResponse.class).getBody();
         assertThat(created).isNotNull();
 
-        rest.exchange("/shared/users/" + created.id(), HttpMethod.DELETE, new HttpEntity<>(headers), Void.class);
+        rest.exchange("/shared/users/" + created.login(), HttpMethod.DELETE, new HttpEntity<>(headers), Void.class);
 
-        var secondDeactivate = rest.exchange("/shared/users/" + created.id(), HttpMethod.DELETE,
+        var secondDeactivate = rest.exchange("/shared/users/" + created.login(), HttpMethod.DELETE,
                 new HttpEntity<>(headers), String.class);
         assertThat(secondDeactivate.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
     }

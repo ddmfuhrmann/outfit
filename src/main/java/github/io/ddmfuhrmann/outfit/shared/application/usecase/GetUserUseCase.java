@@ -16,9 +16,9 @@ public class GetUserUseCase {
     }
 
     @Transactional(readOnly = true)
-    public UserResponse execute(Long id) {
-        return userRepository.findById(id)
+    public UserResponse execute(String login) {
+        return userRepository.findById(login)
                 .map(UserResponse::from)
-                .orElseThrow(() -> new ResourceNotFoundException("User " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User " + login + " not found"));
     }
 }

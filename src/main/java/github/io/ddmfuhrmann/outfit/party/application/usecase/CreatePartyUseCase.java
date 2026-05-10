@@ -50,7 +50,7 @@ public class CreatePartyUseCase {
         if (addresses == null || addresses.isEmpty()) return;
         for (var req : addresses) {
             party.addAddress(req.street(), req.neighborhood(), req.zipCode(),
-                    req.number(), req.complement(), req.cityId());
+                    req.number(), req.complement(), req.cityIbgeCode());
         }
     }
 

@@ -97,15 +97,9 @@ public class Party extends BaseAggregate<Party> {
             party.salesperson = salesperson;
             party.commissionPercent = commissionPercent;
             party.active = true;
+            party.registerEvent(new PartyCreated(party.getId(), party.toSnapshot()));
             return party;
         }
-    }
-
-    // Registers PartyCreated after the INSERT so getId() is non-null (IDENTITY strategy assigns ID on persist).
-    // Spring Data reads @DomainEvents after save() returns, which is after this callback fires.
-    @PostPersist
-    void onPersisted() {
-        registerEvent(new PartyCreated(getId(), toSnapshot()));
     }
 
     public void updateProfile(String legalName, String name,
@@ -124,15 +118,11 @@ public class Party extends BaseAggregate<Party> {
     }
 
     public Address addAddress(String street, String neighborhood, String zipCode,
-                              String number, String complement, Long cityId) {
-        var address = Address.create(getId(), street, neighborhood, zipCode, number, complement, cityId);
+                              String number, String complement, Integer cityIbgeCode) {
+        var address = Address.create(getId(), street, neighborhood, zipCode, number, complement, cityIbgeCode);
         addresses.add(address);
-        return address;
-    }
-
-    // Called by use case after saveAndFlush so address.getId() is non-null in the snapshot.
-    public void onAddressAdded() {
         registerEvent(new PartyAddressAdded(getId(), toSnapshot()));
+        return address;
     }
 
     public void removeAddress(Long addressId) {
@@ -147,12 +137,8 @@ public class Party extends BaseAggregate<Party> {
     public Contact addContact(ContactType classification, String description) {
         var contact = Contact.create(getId(), classification, description);
         contacts.add(contact);
-        return contact;
-    }
-
-    // Called by use case after saveAndFlush so contact.getId() is non-null in the snapshot.
-    public void onContactAdded() {
         registerEvent(new PartyContactAdded(getId(), toSnapshot()));
+        return contact;
     }
 
     public void removeContact(Long contactId) {
@@ -187,7 +173,7 @@ public class Party extends BaseAggregate<Party> {
                                 address.getZipCode(),
                                 address.getNumber(),
                                 address.getComplement(),
-                                address.getCityId()))
+                                address.getCityIbgeCode()))
                         .toList(),
                 contacts.stream()
                         .map(contact -> new PartyContactSnapshot(

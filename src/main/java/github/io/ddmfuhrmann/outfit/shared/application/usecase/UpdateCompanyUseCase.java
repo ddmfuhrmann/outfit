@@ -24,15 +24,15 @@ public class UpdateCompanyUseCase {
 
     @Transactional
     public CompanyResponse execute(UpdateCompanyRequest request) {
-        var company = companyRepository.findById(1L)
+        var company = companyRepository.findAll().stream().findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
-        City city = request.cityId() != null
-                ? cityRepository.findById(request.cityId())
-                        .orElseThrow(() -> new ResourceNotFoundException("City " + request.cityId() + " not found"))
+        City city = request.cityIbgeCode() != null
+                ? cityRepository.findById(request.cityIbgeCode())
+                        .orElseThrow(() -> new ResourceNotFoundException("City " + request.cityIbgeCode() + " not found"))
                 : null;
         company.update(request.cnpj(), request.companyName(), request.tradeName(),
                 request.street(), request.phone(), city);
-        log.info("Company updated: id={}", company.getId());
+        log.info("Company updated: cnpj={}", company.getCnpj());
         return CompanyResponse.from(company);
     }
 }

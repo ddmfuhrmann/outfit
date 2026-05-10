@@ -34,7 +34,7 @@ public class LoginUseCase {
             log.warn("Login failed: login={}", request.login());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
-        User user = userRepository.findByLogin(request.login())
+        User user = userRepository.findById(request.login())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
         String token = jwtService.generateToken(user);
         log.info("Login successful: login={}", request.login());

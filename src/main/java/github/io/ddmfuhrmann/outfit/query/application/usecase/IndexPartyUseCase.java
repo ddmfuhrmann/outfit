@@ -44,7 +44,7 @@ public class IndexPartyUseCase {
                 snapshot.updatedAt(),
                 snapshot.addresses().stream()
                         .map(a -> {
-                            var city = a.cityId() != null ? getCity.execute(a.cityId()) : null;
+                            var city = a.cityIbgeCode() != null ? getCity.execute(a.cityIbgeCode()) : null;
                             return new AddressDocument(
                                     a.id(),
                                     a.street(),
@@ -52,7 +52,7 @@ public class IndexPartyUseCase {
                                     a.zipCode(),
                                     a.number(),
                                     a.complement(),
-                                    a.cityId(),
+                                    a.cityIbgeCode(),
                                     city != null ? city.cityName() : null,
                                     city != null ? city.stateAbbr() : null);
                         })

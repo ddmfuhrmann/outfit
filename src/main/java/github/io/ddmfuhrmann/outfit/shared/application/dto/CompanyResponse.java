@@ -5,25 +5,23 @@ import github.io.ddmfuhrmann.outfit.shared.domain.model.Company;
 import java.time.Instant;
 
 public record CompanyResponse(
-        Long id,
         String cnpj,
         String companyName,
         String tradeName,
         String street,
         String phone,
-        Long cityId,
+        Integer cityIbgeCode,
         Instant createdAt,
         Instant updatedAt
 ) {
     public static CompanyResponse from(Company company) {
         return new CompanyResponse(
-                company.getId(),
                 company.getCnpj(),
                 company.getCompanyName(),
                 company.getTradeName(),
                 company.getStreet(),
                 company.getPhone(),
-                company.getCity() != null ? company.getCity().getId() : null,
+                company.getCity() != null ? company.getCity().getIbgeCityCode() : null,
                 company.getCreatedAt(),
                 company.getUpdatedAt()
         );

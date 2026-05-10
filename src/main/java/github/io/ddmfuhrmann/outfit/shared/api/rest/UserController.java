@@ -44,22 +44,22 @@ public class UserController {
     @PostMapping
     ResponseEntity<UserResponse> create(@RequestBody @Valid CreateUserRequest request) {
         UserResponse created = createUser.execute(request);
-        return ResponseEntity.created(URI.create("/shared/users/" + created.id())).body(created);
+        return ResponseEntity.created(URI.create("/shared/users/" + created.login())).body(created);
     }
 
-    @GetMapping("/{id}")
-    ResponseEntity<UserResponse> get(@PathVariable Long id) {
-        return ResponseEntity.ok(getUser.execute(id));
+    @GetMapping("/{login}")
+    ResponseEntity<UserResponse> get(@PathVariable String login) {
+        return ResponseEntity.ok(getUser.execute(login));
     }
 
-    @PutMapping("/{id}")
-    ResponseEntity<UserResponse> update(@PathVariable Long id, @RequestBody UpdateUserRequest request) {
-        return ResponseEntity.ok(updateUser.execute(id, request));
+    @PutMapping("/{login}")
+    ResponseEntity<UserResponse> update(@PathVariable String login, @RequestBody UpdateUserRequest request) {
+        return ResponseEntity.ok(updateUser.execute(login, request));
     }
 
-    @DeleteMapping("/{id}")
-    ResponseEntity<Void> deactivate(@PathVariable Long id) {
-        deactivateUser.execute(id);
+    @DeleteMapping("/{login}")
+    ResponseEntity<Void> deactivate(@PathVariable String login) {
+        deactivateUser.execute(login);
         return ResponseEntity.noContent().build();
     }
 }

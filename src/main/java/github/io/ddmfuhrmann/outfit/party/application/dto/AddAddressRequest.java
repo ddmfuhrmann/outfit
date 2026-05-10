@@ -6,5 +6,5 @@ public record AddAddressRequest(
         String zipCode,
         String number,
         String complement,
-        Long cityId
+        Integer cityIbgeCode
 ) {}

@@ -17,7 +17,7 @@ public class GetCompanyUseCase {
 
     @Transactional(readOnly = true)
     public CompanyResponse execute() {
-        return companyRepository.findById(1L)
+        return companyRepository.findAll().stream().findFirst()
                 .map(CompanyResponse::from)
                 .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
     }
