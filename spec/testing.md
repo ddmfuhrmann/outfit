@@ -306,6 +306,25 @@ Both formats are accepted — the `of()` factory strips non-digit characters bef
 
 ---
 
+## Manual API Tests (`.http` files)
+
+The `api-tests/` directory contains IntelliJ HTTP Client files for manual exploration and smoke-testing against a running server. They complement the automated `*IT` tests — not replace them.
+
+### Conventions
+
+- One file per domain flow (e.g. `inventory-flow.http`), not one file per endpoint.
+- Flow files run top-to-bottom: login first, create dependencies, then exercise the feature.
+- Use `client.global.set(...)` response handlers to thread IDs between steps — no hardcoded IDs.
+- Each step has a short comment explaining what it does and the expected outcome (status + state change).
+- Error-path steps (4xx) come after the happy path; their comment must state the expected status code.
+- Environment variables live in `http-client.env.json`. Never commit real credentials — the `local` environment uses the default dev `admin/admin` account.
+
+### When to add or update a flow file
+
+Every phase that introduces new write or query endpoints must either create a new `*-flow.http` or extend an existing one. Stale steps (referencing endpoints that don't exist yet) must be replaced or removed when the real endpoint ships.
+
+---
+
 ## What Not To Do
 
 - No `@MockBean` for use cases or repositories in integration tests — test the real stack

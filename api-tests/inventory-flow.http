@@ -59,8 +59,9 @@ Content-Type: application/json
 
 ###
 
-### Step 5 — Create product with two SKUs (implantationQty 10 and 0)
-# Triggers ProductSkuCreated events → ProductSkuCreatedListener seeds stock_balance and stock_entry
+### Step 5 — Create product with SKU (implantationQty=20)
+# Triggers ProductSkuCreated → ProductSkuCreatedListener seeds stock_balance and stock_entry
+# IDs are strings in JSON because Long > Number.MAX_SAFE_INTEGER — Jackson coerces them back to Long
 POST {{host}}/catalog/products
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -71,49 +72,86 @@ Content-Type: application/json
   "cost": 49.90,
   "purchaseDate": null,
   "colorId": null,
-  "brandId": {{brandId}},
-  "categoryId": {{categoryId}},
+  "brandId": "{{brandId}}",
+  "categoryId": "{{categoryId}}",
   "skus": [
     {
-      "barcode": "FLOW-SKU-A-001",
-      "sizeId": {{sizeId}},
-      "implantationQty": 10
-    },
-    {
-      "barcode": "FLOW-SKU-B-001",
-      "sizeId": {{sizeId}},
-      "implantationQty": 0
+      "barcode": "FLOW-SKU-001",
+      "sizeId": "{{sizeId}}",
+      "implantationQty": 20
     }
   ]
 }
 
 > {%
   client.global.set("productId", response.body.id);
-  client.global.set("skuIdA", response.body.skus[0].id);
-  client.global.set("skuIdB", response.body.skus[1].id);
+  client.global.set("skuId", response.body.skus[0].id);
 %}
 
 ###
 
-### Step 6 — Verify product was created
-GET {{host}}/catalog/products/{{productId}}
+### Step 6 — Check initial movements (1 entry: INITIAL_STOCK, qty=20, balance=20)
+GET {{host}}/inventory/movements/{{skuId}}?page=0&size=10
 Authorization: Bearer {{token}}
-Content-Type: application/json
 
 ###
 
-### Step 7 — Check stock balance for SKU A (implantationQty=10 → balance=10, one stock_entry)
-# Requires inventory query API (phase 03a-2+)
-# Expected: { skuId: {{skuIdA}}, currentBalance: 10 }
-GET {{host}}/inventory/stock/{{skuIdA}}
+### Step 7 — Manual adjustment: raise balance from 20 to 25
+# Records a MANUAL_ADJUSTMENT entry with qty=+5; balance becomes 25
+POST {{host}}/inventory/adjustment
 Authorization: Bearer {{token}}
 Content-Type: application/json
+
+{
+  "skuId": "{{skuId}}",
+  "desiredBalance": 25,
+  "occurredAt": "2026-05-11T12:00:00Z"
+}
 
 ###
 
-### Step 8 — Check stock balance for SKU B (implantationQty=0 → balance=0, no stock_entry)
-# Requires inventory query API (phase 03a-2+)
-# Expected: { skuId: {{skuIdB}}, currentBalance: 0 }
-GET {{host}}/inventory/stock/{{skuIdB}}
+### Step 8 — Manual adjustment: lower balance from 25 to 18
+# Records a MANUAL_ADJUSTMENT entry with qty=-7; balance becomes 18
+POST {{host}}/inventory/adjustment
 Authorization: Bearer {{token}}
 Content-Type: application/json
+
+{
+  "skuId": "{{skuId}}",
+  "desiredBalance": 18,
+  "occurredAt": "2026-05-11T13:00:00Z"
+}
+
+###
+
+### Step 9 — Same-balance adjustment → 422 Unprocessable Entity
+# Desired balance equals current balance (18); no-op is rejected
+POST {{host}}/inventory/adjustment
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "skuId": "{{skuId}}",
+  "desiredBalance": 18,
+  "occurredAt": "2026-05-11T14:00:00Z"
+}
+
+###
+
+### Step 10 — Unknown SKU adjustment → 404 Not Found
+POST {{host}}/inventory/adjustment
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "skuId": "999999999",
+  "desiredBalance": 10,
+  "occurredAt": "2026-05-11T14:00:00Z"
+}
+
+###
+
+### Step 11 — Get full movement history (3 entries: MANUAL_ADJUSTMENT, MANUAL_ADJUSTMENT, INITIAL_STOCK)
+# Ordered by occurredAt descending
+GET {{host}}/inventory/movements/{{skuId}}?page=0&size=10
+Authorization: Bearer {{token}}
