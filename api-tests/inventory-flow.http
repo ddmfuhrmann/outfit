@@ -1,0 +1,119 @@
+### Step 1 — Login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "login": "admin",
+  "password": "admin"
+}
+
+> {%
+  client.global.set("token", response.body.token);
+%}
+
+###
+
+### Step 2 — Create brand
+POST {{host}}/catalog/brands
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Inventory Flow Brand"
+}
+
+> {%
+  client.global.set("brandId", response.body.id);
+%}
+
+###
+
+### Step 3 — Create category
+POST {{host}}/catalog/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Inventory Flow Category",
+  "parentId": null
+}
+
+> {%
+  client.global.set("categoryId", response.body.id);
+%}
+
+###
+
+### Step 4 — Create size
+POST {{host}}/catalog/sizes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "M"
+}
+
+> {%
+  client.global.set("sizeId", response.body.id);
+%}
+
+###
+
+### Step 5 — Create product with two SKUs (implantationQty 10 and 0)
+# Triggers ProductSkuCreated events → ProductSkuCreatedListener seeds stock_balance and stock_entry
+POST {{host}}/catalog/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Flow Shirt",
+  "price": 99.90,
+  "cost": 49.90,
+  "purchaseDate": null,
+  "colorId": null,
+  "brandId": {{brandId}},
+  "categoryId": {{categoryId}},
+  "skus": [
+    {
+      "barcode": "FLOW-SKU-A-001",
+      "sizeId": {{sizeId}},
+      "implantationQty": 10
+    },
+    {
+      "barcode": "FLOW-SKU-B-001",
+      "sizeId": {{sizeId}},
+      "implantationQty": 0
+    }
+  ]
+}
+
+> {%
+  client.global.set("productId", response.body.id);
+  client.global.set("skuIdA", response.body.skus[0].id);
+  client.global.set("skuIdB", response.body.skus[1].id);
+%}
+
+###
+
+### Step 6 — Verify product was created
+GET {{host}}/catalog/products/{{productId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Step 7 — Check stock balance for SKU A (implantationQty=10 → balance=10, one stock_entry)
+# Requires inventory query API (phase 03a-2+)
+# Expected: { skuId: {{skuIdA}}, currentBalance: 10 }
+GET {{host}}/inventory/stock/{{skuIdA}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Step 8 — Check stock balance for SKU B (implantationQty=0 → balance=0, no stock_entry)
+# Requires inventory query API (phase 03a-2+)
+# Expected: { skuId: {{skuIdB}}, currentBalance: 0 }
+GET {{host}}/inventory/stock/{{skuIdB}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
