@@ -5,6 +5,7 @@ import github.io.ddmfuhrmann.outfit.query.application.usecase.*;
 import github.io.ddmfuhrmann.outfit.shared.application.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +27,7 @@ public class ReferenceDataQueryController {
 
     @GetMapping("/catalog/brands")
     @Operation(summary = "Search brands", description = ES_NOTE)
-    ResponseEntity<PageResponse<RefDocument>> searchBrands(@RequestParam(required = false) String q, Pageable pageable) {
+    ResponseEntity<PageResponse<RefDocument>> searchBrands(@RequestParam(required = false) String q, @ParameterObject Pageable pageable) {
         return ResponseEntity.ok(searchBrands.execute(q, pageable));
     }
 
@@ -38,7 +39,7 @@ public class ReferenceDataQueryController {
 
     @GetMapping("/catalog/categories")
     @Operation(summary = "Search categories", description = ES_NOTE)
-    ResponseEntity<PageResponse<RefDocument>> searchCategories(@RequestParam(required = false) String q, Pageable pageable) {
+    ResponseEntity<PageResponse<RefDocument>> searchCategories(@RequestParam(required = false) String q, @ParameterObject Pageable pageable) {
         return ResponseEntity.ok(searchCategories.execute(q, pageable));
     }
 
@@ -50,7 +51,7 @@ public class ReferenceDataQueryController {
 
     @GetMapping("/catalog/colors")
     @Operation(summary = "Search colors", description = ES_NOTE)
-    ResponseEntity<PageResponse<RefDocument>> searchColors(@RequestParam(required = false) String q, Pageable pageable) {
+    ResponseEntity<PageResponse<RefDocument>> searchColors(@RequestParam(required = false) String q, @ParameterObject Pageable pageable) {
         return ResponseEntity.ok(searchColors.execute(q, pageable));
     }
 
@@ -62,7 +63,7 @@ public class ReferenceDataQueryController {
 
     @GetMapping("/catalog/sizes")
     @Operation(summary = "Search sizes", description = ES_NOTE)
-    ResponseEntity<PageResponse<RefDocument>> searchSizes(@RequestParam(required = false) String q, Pageable pageable) {
+    ResponseEntity<PageResponse<RefDocument>> searchSizes(@RequestParam(required = false) String q, @ParameterObject Pageable pageable) {
         return ResponseEntity.ok(searchSizes.execute(q, pageable));
     }
 

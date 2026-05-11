@@ -5,6 +5,7 @@ import github.io.ddmfuhrmann.outfit.query.application.usecase.GetProductByIdUseC
 import github.io.ddmfuhrmann.outfit.query.application.usecase.SearchProductsUseCase;
 import github.io.ddmfuhrmann.outfit.shared.application.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +27,7 @@ public class ProductQueryController {
             description = "Served from Elasticsearch. Reflects committed state synchronously — domain events are indexed before the write response is sent.")
     ResponseEntity<PageResponse<ProductDocument>> search(
             @RequestParam(required = false) String q,
-            Pageable pageable) {
+            @ParameterObject Pageable pageable) {
         return ResponseEntity.ok(searchProducts.execute(q, pageable));
     }
 

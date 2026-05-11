@@ -5,6 +5,7 @@ import github.io.ddmfuhrmann.outfit.query.application.usecase.GetPartyByIdUseCas
 import github.io.ddmfuhrmann.outfit.query.application.usecase.SearchPartiesUseCase;
 import github.io.ddmfuhrmann.outfit.shared.application.dto.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,7 +28,7 @@ public class PartyQueryController {
     ResponseEntity<PageResponse<PartyDocument>> search(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String role,
-            Pageable pageable) {
+            @ParameterObject Pageable pageable) {
         return ResponseEntity.ok(searchParties.execute(q, role, pageable));
     }
 
