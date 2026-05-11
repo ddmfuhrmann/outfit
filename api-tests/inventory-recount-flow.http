@@ -1,0 +1,221 @@
+### Step 1 — Login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "login": "admin",
+  "password": "admin"
+}
+
+> {%
+  client.global.set("token", response.body.token);
+%}
+
+###
+
+### Step 2 — Create brand
+POST {{host}}/catalog/brands
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Recount Flow Brand"
+}
+
+> {%
+  client.global.set("brandId", response.body.id);
+%}
+
+###
+
+### Step 3 — Create category
+POST {{host}}/catalog/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Recount Flow Category",
+  "parentId": null
+}
+
+> {%
+  client.global.set("categoryId", response.body.id);
+%}
+
+###
+
+### Step 4 — Create size
+POST {{host}}/catalog/sizes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "G"
+}
+
+> {%
+  client.global.set("sizeId", response.body.id);
+%}
+
+###
+
+### Step 5 — Create product with two SKUs
+# ProductSkuCreated seeds stock_balance + stock_entry (INITIAL_STOCK) for each SKU
+# skuA: implantationQty=20 → balance=20
+# skuB: implantationQty=5  → balance=5
+POST {{host}}/catalog/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Recount Flow Shirt",
+  "price": 149.90,
+  "cost": 74.90,
+  "purchaseDate": null,
+  "colorId": null,
+  "brandId": "{{brandId}}",
+  "categoryId": "{{categoryId}}",
+  "skus": [
+    {
+      "barcode": "RCT-SKU-A",
+      "sizeId": "{{sizeId}}",
+      "implantationQty": 20
+    },
+    {
+      "barcode": "RCT-SKU-B",
+      "sizeId": "{{sizeId}}",
+      "implantationQty": 5
+    }
+  ]
+}
+
+> {%
+  client.global.set("skuA", response.body.skus[0].id);
+  client.global.set("skuB", response.body.skus[1].id);
+%}
+
+###
+
+### Step 6 — Confirm initial balances (INITIAL_STOCK entries)
+# skuA: 1 entry, qty=20, runningBalance=20
+GET {{host}}/inventory/movements/{{skuA}}?page=0&size=5
+Authorization: Bearer {{token}}
+
+###
+
+# skuB: 1 entry, qty=5, runningBalance=5
+GET {{host}}/inventory/movements/{{skuB}}?page=0&size=5
+Authorization: Bearer {{token}}
+
+###
+
+### Step 7 — Open stock recount → 201 Created, body: { "id": "..." }
+POST {{host}}/inventory/recount
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "date": "2026-05-11",
+  "notes": "Contagem mensal maio/2026"
+}
+
+> {%
+  client.global.set("recountId", response.body.id);
+%}
+
+###
+
+### Step 8 — GET recount while open: status=OPEN, items=[]
+GET {{host}}/inventory/recount/{{recountId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 9 — Add SKU A (counted 18) → 204 No Content
+POST {{host}}/inventory/recount/{{recountId}}/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "skuId": "{{skuA}}",
+  "countedQty": 18
+}
+
+###
+
+### Step 10 — Add SKU B (counted 5) → 204 No Content
+POST {{host}}/inventory/recount/{{recountId}}/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "skuId": "{{skuB}}",
+  "countedQty": 5
+}
+
+###
+
+### Step 11 — Add SKU A again → 400 Bad Request (duplicate SKU)
+POST {{host}}/inventory/recount/{{recountId}}/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "skuId": "{{skuA}}",
+  "countedQty": 10
+}
+
+###
+
+### Step 12 — GET recount while open: items present, systemBalance=null, delta=null
+GET {{host}}/inventory/recount/{{recountId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 13 — Close recount → 204 No Content
+# skuA: counted=18, balance=20 → delta=-2 → gera RECOUNT_ADJUSTMENT qty=-2, runningBalance=18
+# skuB: counted=5,  balance=5  → delta=0  → nenhum lançamento gerado
+POST {{host}}/inventory/recount/{{recountId}}/close
+Authorization: Bearer {{token}}
+
+###
+
+### Step 14 — GET recount after close
+# status=CLOSED, closedAt preenchido
+# skuA: systemBalance=20, delta=-2
+# skuB: systemBalance=5,  delta=0
+GET {{host}}/inventory/recount/{{recountId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 15 — Confirm RECOUNT_ADJUSTMENT entry for SKU A
+# 2 entries: RECOUNT_ADJUSTMENT (qty=-2, balance=18) + INITIAL_STOCK (qty=20, balance=20)
+GET {{host}}/inventory/movements/{{skuA}}?page=0&size=5
+Authorization: Bearer {{token}}
+
+###
+
+### Step 16 — Confirm no RECOUNT_ADJUSTMENT for SKU B (delta=0)
+# 1 entry only: INITIAL_STOCK (qty=5, balance=5)
+GET {{host}}/inventory/movements/{{skuB}}?page=0&size=5
+Authorization: Bearer {{token}}
+
+###
+
+### Step 17 — Close already-closed recount → 422 Unprocessable Entity
+POST {{host}}/inventory/recount/{{recountId}}/close
+Authorization: Bearer {{token}}
+
+###
+
+### Step 18 — Add item to closed recount → 422 Unprocessable Entity
+POST {{host}}/inventory/recount/{{recountId}}/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "skuId": "{{skuA}}",
+  "countedQty": 5
+}
