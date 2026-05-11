@@ -17,6 +17,13 @@ Content-Type: application/json
 
 ###
 
+### Search categories by prefix (typeahead)
+GET {{host}}/catalog/categories?q=Cam&page=0&size=10
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
 ### Get category by ID
 GET {{host}}/catalog/categories/1
 Authorization: Bearer {{token}}

@@ -197,6 +197,29 @@ class PartyQueryControllerIT extends AbstractIT {
     }
 
     @Test
+    void searchByPrefix_returnsMatchingParty() {
+        var req = new CreatePartyRequest(
+                PersonType.LEGAL_ENTITY, VALID_CNPJ, null,
+                "Prefixcorp Ltda", "Prefixcorp",
+                false, true, false,
+                null, null, null);
+        var createResp = rest.exchange("/party", HttpMethod.POST,
+                new HttpEntity<>(req, authHeaders(rest)), PartyCreatedResponse.class);
+        assertThat(createResp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        Long id = createResp.getBody().id();
+
+        var resp = rest.exchange("/party?q=Prefix", HttpMethod.GET,
+                new HttpEntity<>(authHeaders(rest)),
+                new ParameterizedTypeReference<PageResponse<PartyDocument>>() {});
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().content())
+                .extracting(PartyDocument::id)
+                .contains(id);
+    }
+
+    @Test
     void getByIdForNonExistentPartyReturns404() {
         var resp = rest.exchange("/party/999999", HttpMethod.GET,
                 new HttpEntity<>(authHeaders(rest)), String.class);

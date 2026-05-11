@@ -2,6 +2,7 @@ package github.io.ddmfuhrmann.outfit.query.application.usecase;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.util.ObjectBuilder;
@@ -41,7 +42,11 @@ public class SearchProductsUseCase {
 
     private ObjectBuilder<Query> buildQuery(Query.Builder qb, String q) {
         if (q == null || q.isBlank()) return qb.matchAll(m -> m);
-        return qb.multiMatch(mm -> mm.query(q));
+        return qb.multiMatch(mm -> mm
+                .query(q)
+                .type(TextQueryType.BoolPrefix)
+                .fields("description", "description._2gram", "description._3gram", "description._index_prefix")
+        );
     }
 
     private PageResponse<ProductDocument> toPage(SearchResponse<ProductDocument> response, Pageable pageable, int size) {

@@ -3,6 +3,7 @@ package github.io.ddmfuhrmann.outfit.query.application.usecase;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.util.ObjectBuilder;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import github.io.ddmfuhrmann.outfit.query.application.dto.PartyDocument;
@@ -44,7 +45,13 @@ public class SearchPartiesUseCase {
         boolean hasRole = role != null && !role.isBlank();
         if (!hasQ && !hasRole) return qb.matchAll(m -> m);
         return qb.bool(b -> {
-            if (hasQ)    b.must(m -> m.multiMatch(mm -> mm.query(q).fields("legalName", "name", "cnpj", "cpf")));
+            if (hasQ)    b.must(m -> m.multiMatch(mm -> mm
+                    .query(q)
+                    .type(TextQueryType.BoolPrefix)
+                    .fields("name", "name._2gram", "name._3gram", "name._index_prefix",
+                            "legalName", "legalName._2gram", "legalName._3gram", "legalName._index_prefix",
+                            "cnpj", "cpf")
+            ));
             if (hasRole) b.filter(f -> f.term(t -> t.field(role).value(true)));
             return b;
         });
