@@ -49,8 +49,12 @@ class ProductQueryControllerIT extends AbstractIT {
     }
 
     private ProductResponse createProduct(HttpHeaders headers, Long brandId, Long categoryId, Long colorId, Long sizeId) {
+        return createProduct(headers, brandId, categoryId, colorId, sizeId, "Tênis Running Pro");
+    }
+
+    private ProductResponse createProduct(HttpHeaders headers, Long brandId, Long categoryId, Long colorId, Long sizeId, String description) {
         var request = new CreateProductRequest(
-                "Tênis Running Pro", BigDecimal.valueOf(299.90), BigDecimal.valueOf(150.00),
+                description, BigDecimal.valueOf(299.90), BigDecimal.valueOf(150.00),
                 null, colorId, brandId, categoryId,
                 List.of(new CreateSkuRequest("BAR-" + System.nanoTime(), sizeId, 5)));
         var resp = rest.exchange("/catalog/products", HttpMethod.POST,
@@ -145,6 +149,26 @@ class ProductQueryControllerIT extends AbstractIT {
 
         assertThat(resp.getBody()).isNotNull();
         assertThat(resp.getBody().skus().getFirst().active()).isFalse();
+    }
+
+    @Test
+    void searchByPrefix_returnsMatchingDocuments() {
+        var headers = authHeaders(rest);
+        Long brandId = createBrand(headers);
+        Long categoryId = createCategory(headers);
+        Long sizeId = createSize(headers);
+
+        var product = createProduct(headers, brandId, categoryId, null, sizeId, "Camiseta Azul");
+
+        var resp = rest.exchange("/catalog/products?q=Cam", HttpMethod.GET,
+                new HttpEntity<>(authHeaders(rest)),
+                new ParameterizedTypeReference<PageResponse<ProductDocument>>() {});
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().content())
+                .extracting(ProductDocument::id)
+                .contains(product.id());
     }
 
     @Test

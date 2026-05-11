@@ -1,4 +1,11 @@
 
+### Search products by prefix (typeahead)
+GET {{host}}/catalog/products?q=Cam&page=0&size=10
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
 ### Create product
 POST {{host}}/catalog/products
 Authorization: Bearer {{token}}

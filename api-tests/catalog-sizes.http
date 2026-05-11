@@ -16,6 +16,13 @@ Content-Type: application/json
 
 ###
 
+### Search sizes by prefix (typeahead)
+GET {{host}}/catalog/sizes?q=Med&page=0&size=10
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
 ### Get size by ID
 GET {{host}}/catalog/sizes/1
 Authorization: Bearer {{token}}

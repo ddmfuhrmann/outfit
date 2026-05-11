@@ -57,6 +57,20 @@ Content-Type: application/json
 
 ###
 
+### Search parties by prefix — name/legalName (typeahead)
+GET {{host}}/party?q=Acm&page=0&size=10
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
+### Search parties by prefix + role filter
+GET {{host}}/party?q=Acm&role=supplier&page=0&size=10
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+###
+
 ### Get party by ID
 GET {{host}}/party/1
 Authorization: Bearer {{token}}
