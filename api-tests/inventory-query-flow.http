@@ -1,0 +1,175 @@
+### Step 1 — Login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "login": "admin",
+  "password": "admin"
+}
+
+> {%
+  client.global.set("token", response.body.token);
+%}
+
+###
+
+### Step 2 — Create brand
+POST {{host}}/catalog/brands
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Query Flow Brand"
+}
+
+> {%
+  client.global.set("brandId", response.body.id);
+%}
+
+###
+
+### Step 3 — Create category
+POST {{host}}/catalog/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Query Flow Category",
+  "parentId": null
+}
+
+> {%
+  client.global.set("categoryId", response.body.id);
+%}
+
+###
+
+### Step 4 — Create size
+POST {{host}}/catalog/sizes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "M"
+}
+
+> {%
+  client.global.set("sizeId", response.body.id);
+%}
+
+###
+
+### Step 5 — Create product with SKU (implantationQty=15)
+# Triggers ProductSkuCreated → seeds initial stock_balance
+# Then StockEntryRecorded → projects stock_snapshot and stock_monthly in Elasticsearch
+POST {{host}}/catalog/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Query Flow Shirt",
+  "price": 99.90,
+  "cost": 49.90,
+  "purchaseDate": null,
+  "colorId": null,
+  "brandId": "{{brandId}}",
+  "categoryId": "{{categoryId}}",
+  "skus": [
+    {
+      "barcode": "QUERY-SKU-001",
+      "sizeId": "{{sizeId}}",
+      "implantationQty": 15
+    }
+  ]
+}
+
+> {%
+  client.global.set("productId", response.body.id);
+  client.global.set("skuId", response.body.skus[0].id);
+%}
+
+###
+
+### Step 6 — Get stock snapshot for SKU (currentBalance=15)
+# Served from Elasticsearch — eventual consistency, retry if 404
+GET {{host}}/inventory/balance/{{skuId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 7 — Search snapshots by productId
+GET {{host}}/inventory/balance?productId={{productId}}&page=0&size=20
+Authorization: Bearer {{token}}
+
+###
+
+### Step 8 — Search snapshots by brandId
+GET {{host}}/inventory/balance?brandId={{brandId}}&page=0&size=20
+Authorization: Bearer {{token}}
+
+###
+
+### Step 9 — Search snapshots by categoryId
+GET {{host}}/inventory/balance?categoryId={{categoryId}}&page=0&size=20
+Authorization: Bearer {{token}}
+
+###
+
+### Step 10 — Search snapshots with no filters (all SKUs, paginated)
+GET {{host}}/inventory/balance?page=0&size=50
+Authorization: Bearer {{token}}
+
+###
+
+### Step 11 — Bulk fetch by SKU IDs (known + unknown; unknown is silently omitted)
+POST {{host}}/inventory/balance/bulk
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "skuIds": ["{{skuId}}", "999000000999"]
+}
+
+###
+
+### Step 12 — Unknown SKU → 404 Not Found
+GET {{host}}/inventory/balance/999999999
+Authorization: Bearer {{token}}
+
+###
+
+### Step 13 — Get monthly summary for current month (openingBalance=0, totalInbound=15, closingBalance=15)
+GET {{host}}/inventory/stock/monthly?skuId={{skuId}}&yearMonth=2026-05&page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### Step 14 — Manual adjustment: raise balance from 15 to 30
+# StockEntryRecorded → updates snapshot (currentBalance=30) and monthly (totalInbound+=15, closingBalance=30)
+POST {{host}}/inventory/adjustment
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "skuId": "{{skuId}}",
+  "desiredBalance": 30,
+  "occurredAt": "2026-05-11T15:00:00Z"
+}
+
+###
+
+### Step 15 — Get updated snapshot (currentBalance=30)
+GET {{host}}/inventory/balance/{{skuId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 16 — Get monthly summary after adjustment (totalInbound=30, closingBalance=30)
+GET {{host}}/inventory/stock/monthly?skuId={{skuId}}&yearMonth=2026-05&page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### Step 17 — Search monthly by brandId
+GET {{host}}/inventory/stock/monthly?brandId={{brandId}}&page=0&size=20
+Authorization: Bearer {{token}}
