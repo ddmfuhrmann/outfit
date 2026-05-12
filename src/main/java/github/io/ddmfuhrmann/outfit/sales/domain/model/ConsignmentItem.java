@@ -49,7 +49,7 @@ public class ConsignmentItem extends BaseEntity {
     public void recordReturn(int quantity) {
         if (quantity <= 0) throw new IllegalArgumentException("quantity must be positive");
         if (quantityReturned + quantity > quantityIssued)
-            throw new IllegalArgumentException("return exceeds issued quantity");
+            throw new IllegalStateException("return exceeds issued quantity");
         this.quantityReturned += quantity;
     }
 
