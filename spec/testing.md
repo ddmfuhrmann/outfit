@@ -325,6 +325,43 @@ Every phase that introduces new write or query endpoints must either create a ne
 
 ---
 
+## Query Module Integration Tests
+
+Query module tests verify the full write → index → query flow in a single IT. Because indexing is synchronous (`SyncTaskExecutor`), no sleep or polling is needed — the document is present immediately after the write completes.
+
+### Pattern: write, then read through Elasticsearch
+
+```java
+@Test
+void getReturns200WithEnrichedDocument() {
+    // 1. Create dependencies (party, product) so the enrichment can resolve them
+    var partyResponse = rest.exchange("/parties", HttpMethod.POST, ..., PartyResponse.class).getBody();
+    var productResponse = rest.exchange("/catalog/products", HttpMethod.POST, ..., ProductResponse.class).getBody();
+
+    // 2. Trigger the domain event that drives indexing
+    var saleResponse = rest.exchange("/sales", HttpMethod.POST, ..., SaleResponse.class).getBody();
+
+    // 3. Read from the query endpoint — document is already indexed
+    var get = rest.exchange("/sales/" + saleResponse.id(), HttpMethod.GET,
+            new HttpEntity<>(authHeaders(rest)), SaleDocument.class);
+
+    assertThat(get.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertThat(get.getBody().customer().name()).isEqualTo(partyResponse.name());
+    assertThat(get.getBody().items().getFirst().productDescription())
+            .isEqualTo(productResponse.description());
+}
+```
+
+### Rules for query module ITs
+
+- Always create the referenced entities (party, product) **before** the write that triggers indexing — otherwise the enrichment fetch from ES will 404 and throw `IndexingException`.
+- Test enriched fields explicitly: `customer.name`, `sellers[].name`, `items[].productDescription`, `items[].brandDescription`, `items[].sizeDescription`.
+- Search-as-you-type tests: POST the entity, then `GET /endpoint?q=<prefix>` — the search must return the created document. Use a unique enough name that other test data does not pollute results.
+- Filter tests: create two entities with different discriminators (e.g., different `origin` values), filter on one, and assert only the matching entity is returned.
+- Elasticsearch index isolation: each test run uses the same shared Elasticsearch container (started once per JVM). Tests accumulate documents across methods in the same run — design filter and search assertions to be specific enough to avoid false positives from other tests.
+
+---
+
 ## What Not To Do
 
 - No `@MockBean` for use cases or repositories in integration tests — test the real stack

@@ -193,9 +193,11 @@ Events are **never** published from use cases via `ApplicationEventPublisher`. T
 
 #### Snapshot records
 
-For aggregates whose events are consumed by the `query` module, each event carries a snapshot record containing the full aggregate state at the time of the change. This lets listeners index without additional DB queries — the event is self-contained.
+For aggregates whose events are consumed by the `query` module, the event should carry enough of the **producing module's own state** for the listener to build or update the Elasticsearch document without querying PostgreSQL.
 
-Snapshots live alongside their events in `domain.event`:
+Two patterns apply depending on the nature of the cross-module data:
+
+**Self-contained aggregate** (all data belongs to the producing module): carry a full snapshot so the listener is DB-free.
 
 ```java
 // domain/event/PartySnapshot.java
@@ -207,7 +209,19 @@ public record PartySnapshot(
 public record PartyCreated(Long partyId, PartySnapshot snapshot) {}
 ```
 
-The aggregate root builds the snapshot from its own state via a private `toSnapshot()` method and passes it to `registerEvent()`. Child entities get their own nested snapshot records (e.g., `PartyAddressSnapshot`).
+The aggregate root builds the snapshot from its own state via a private `toSnapshot()` method. Child entities get their own nested snapshot records (e.g., `PartyAddressSnapshot`).
+
+**Aggregate with cross-module references** (e.g., a sale referencing customers and products from other modules): carry the producing module's own child-entity data as snapshot records, and carry cross-module references as plain IDs. The `query` module resolves names and descriptions from existing Elasticsearch indices at indexing time — see the enrichment pattern above.
+
+```java
+// SaleConfirmed carries own data + foreign IDs — no customer name or product description
+public record SaleConfirmed(
+    Long saleId, Long customerId,            // customerId → query module fetches from parties index
+    List<SaleItemSnapshot> items,            // items are own data (skuId, productId, quantity, price)
+    List<SaleSellerSnapshot> sellers,        // sellers carry own data (sharePercent, commissionPercent)
+    ...
+) {}
+```
 
 Simple reference-data events (e.g., `BrandRenamed`) do not need a snapshot — they carry only the changed fields.
 
@@ -373,13 +387,14 @@ The `query` module is the read side of the CQRS split. It owns Elasticsearch exc
 
 ### When to use the query module
 
+The query module is the **exclusive read side** for all list and detail GET endpoints. Owning modules expose only write endpoints (POST / PUT / DELETE). This rule holds even for single-module entities — consistency is provided by synchronous indexing (the document is in Elasticsearch before the HTTP 201 returns).
+
 | Read type | Source | Why |
 |---|---|---|
-| List view spanning multiple modules (sales with customer + seller info) | `query` → Elasticsearch | Cross-module JOINs would violate module isolation |
-| Filtered/searchable list with rich query parameters | `query` → Elasticsearch | Full-text search and faceting |
+| Detail view (`GET /sales/{id}`) | `query` → Elasticsearch | Consistent with list view; synchronous indexing guarantees read-your-own-write |
+| List / search with filters | `query` → Elasticsearch | Full-text search, faceting, cross-module aggregation |
 | Reports, dashboards, aggregations | `query` → Elasticsearch | Aggregation pipeline |
-| Single entity by ID right after a write | owning module → PostgreSQL | Needs strong consistency (read-your-own-write) |
-| Simple admin CRUD within a single module | owning module → PostgreSQL | No cross-module data, no need for search |
+| Write response body (POST / PUT) | owning module → PostgreSQL | Immediate response from the transaction that just committed |
 
 ### Internal structure
 
@@ -395,6 +410,34 @@ query/
   api/
     rest/           ← GET-only controllers — delegate to query services
 ```
+
+### Document enrichment — ES-to-ES pattern
+
+When an event arrives with only IDs for cross-module references (e.g., a `SaleConfirmed` carrying `customerId` and `salespersonIds`), the indexing use case fetches the missing names and descriptions by querying **existing Elasticsearch indices** — it never queries PostgreSQL and never calls an owning module's service.
+
+Each bounded context's projection is a fully denormalized, self-contained read model. Cross-module data (customer name, seller name, product description, brand, color, size) must be resolved from the indices that already hold that data:
+
+| Data needed | Source index | How |
+|---|---|---|
+| Customer / seller display name | `parties` | `GET parties/{id}` → prefer `name` if non-blank, else `legalName` |
+| Product description, brand, color | `products` | `GET products/{productId}` → read top-level fields |
+| SKU size description | `products` | `GET products/{productId}` → find entry in `skus[]` by `skuId` |
+
+Rules:
+- Always reference index name constants from `ElasticsearchIndexInitializer` (e.g., `INDEX_PARTIES`, `INDEX_PRODUCTS`) — never hardcode strings.
+- Wrap ES read failures in `IndexingException`; wrap query-time failures in `QueryException`.
+- Enrichment happens **once**, at indexing time. The document is stored denormalized so read queries need no runtime joins.
+- If the referenced entity does not exist in ES yet (race condition), treat it as an infrastructure failure and propagate `IndexingException` — do not silently swallow it.
+
+#### Event content vs. enrichment responsibility
+
+Domain events carry **only the producing module's own state**. Cross-module IDs (e.g., `customerId`, `salespersonId`, `productId`) are carried as plain `Long` values — the names and descriptions are the concern of the `query` module, not the event producer.
+
+This means:
+- **No snapshot record needed** for cross-module reference data. Only the producing module's own child-entity data (items, installments) is snapshotted in the event.
+- **The query module owns the enrichment logic.** If a product description changes after a sale is indexed, the sale document keeps the description as it was at indexing time — that is correct for audit trail purposes.
+
+---
 
 ### Projections
 
