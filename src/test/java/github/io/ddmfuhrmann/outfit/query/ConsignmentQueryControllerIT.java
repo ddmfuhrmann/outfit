@@ -17,6 +17,7 @@ import org.springframework.http.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -28,6 +29,7 @@ class ConsignmentQueryControllerIT extends AbstractIT {
     TestRestTemplate rest;
 
     private static final AtomicInteger CPF_SEED = new AtomicInteger(200);
+    private static final LocalDate SALE_DATE = LocalDate.of(2025, Month.JUNE, 4);
 
     private record TestSetup(Long skuId, Long productId, Long customerId, Long salespersonId,
                              String customerName) {}
@@ -75,7 +77,7 @@ class ConsignmentQueryControllerIT extends AbstractIT {
         var req = new IssueConsignmentRequest(
                 s.customerId(),
                 List.of(s.salespersonId()),
-                LocalDate.now(),
+                SALE_DATE,
                 "IT consignment",
                 List.of(new ConsignmentItemRequest(s.skuId(), s.productId(), 5, BigDecimal.valueOf(150.00))));
         var resp = rest.exchange("/consignments", HttpMethod.POST,
@@ -93,7 +95,7 @@ class ConsignmentQueryControllerIT extends AbstractIT {
     private void closeConsignment(HttpHeaders headers, long consignmentId, Long salespersonId) {
         var req = new CloseConsignmentRequest(
                 List.of(salespersonId),
-                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, LocalDate.now(), BigDecimal.valueOf(750.00))));
+                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, SALE_DATE, BigDecimal.valueOf(750.00))));
         rest.exchange("/consignments/" + consignmentId + "/close", HttpMethod.POST,
                 new HttpEntity<>(req, headers), Void.class);
     }

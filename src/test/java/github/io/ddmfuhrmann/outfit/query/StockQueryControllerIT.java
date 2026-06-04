@@ -15,9 +15,6 @@ import org.springframework.http.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.YearMonth;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -27,14 +24,14 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 class StockQueryControllerIT extends AbstractIT {
 
+    private static final Instant ADJUSTMENT_TIME = Instant.parse("2025-06-04T01:00:00Z");
+    private static final String  ADJUSTMENT_MONTH = "2025-06";
     private static final ParameterizedTypeReference<PageResponse<StockSnapshotDocument>> SNAPSHOT_PAGE =
             new ParameterizedTypeReference<>() {};
     private static final ParameterizedTypeReference<PageResponse<StockMonthlyDocument>> MONTHLY_PAGE =
             new ParameterizedTypeReference<>() {};
     private static final ParameterizedTypeReference<List<StockSnapshotDocument>> SNAPSHOT_LIST =
             new ParameterizedTypeReference<>() {};
-    private static final DateTimeFormatter YEAR_MONTH_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
-
     @Autowired
     TestRestTemplate rest;
 
@@ -107,7 +104,7 @@ class StockQueryControllerIT extends AbstractIT {
     }
 
     private static String currentMonth() {
-        return YearMonth.now(ZoneOffset.UTC).format(YEAR_MONTH_FORMAT);
+        return ADJUSTMENT_MONTH;
     }
 
     // --- tests ---
@@ -155,7 +152,7 @@ class StockQueryControllerIT extends AbstractIT {
         awaitSnapshot(skuId);
 
         rest.exchange("/inventory/adjustment", HttpMethod.POST,
-                new HttpEntity<>(new ManualAdjustmentRequest(skuId, 25, Instant.now()), headers), Void.class);
+                new HttpEntity<>(new ManualAdjustmentRequest(skuId, 25, ADJUSTMENT_TIME), headers), Void.class);
 
         await().atMost(3, SECONDS).untilAsserted(() ->
                 assertThat(fetchSnapshot(skuId).currentBalance()).isEqualTo(25));
@@ -285,13 +282,13 @@ class StockQueryControllerIT extends AbstractIT {
         awaitSnapshot(skuId);
 
         rest.exchange("/inventory/adjustment", HttpMethod.POST,
-                new HttpEntity<>(new ManualAdjustmentRequest(skuId, 25, Instant.now()), headers), Void.class);
+                new HttpEntity<>(new ManualAdjustmentRequest(skuId, 25, ADJUSTMENT_TIME), headers), Void.class);
 
         await().atMost(3, SECONDS).untilAsserted(() ->
                 assertThat(fetchSnapshot(skuId).currentBalance()).isEqualTo(25));
 
         await().atMost(3, SECONDS).untilAsserted(() -> {
-            var monthly = fetchMonthlyFirst(skuId, currentMonth());
+            var monthly = fetchMonthlyFirst(skuId, ADJUSTMENT_MONTH);
             assertThat(monthly.closingBalance()).isEqualTo(25);
             assertThat(monthly.totalInbound()).isEqualTo(25);
         });

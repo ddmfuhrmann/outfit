@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 
+
 @Service
 public class SearchSalesUseCase {
 
@@ -57,35 +58,46 @@ public class SearchSalesUseCase {
     }
 
     private ObjectBuilder<Query> buildQuery(Query.Builder qb, SearchSalesQuery query) {
-        boolean hasQ          = query.q() != null && !query.q().isBlank();
-        boolean hasCustomer   = query.customerId() != null;
-        boolean hasSeller     = query.salespersonId() != null;
-        boolean hasFrom       = query.from() != null;
-        boolean hasTo         = query.to() != null;
+        boolean hasQ        = query.q() != null && !query.q().isBlank();
+        boolean hasCustomer = query.customerId() != null;
+        boolean hasSeller   = query.salespersonId() != null;
+        boolean hasDateRange = query.from() != null || query.to() != null;
 
-        if (!hasQ && !hasCustomer && !hasSeller && !hasFrom && !hasTo) {
+        if (!hasQ && !hasCustomer && !hasSeller && !hasDateRange) {
             return qb.matchAll(m -> m);
         }
 
         return qb.bool(b -> {
-            if (hasQ) b.must(m -> m.multiMatch(mm -> mm
-                    .query(query.q())
-                    .type(TextQueryType.BoolPrefix)
-                    .fields("customerName", "customerName._2gram",
-                            "customerName._3gram", "customerName._index_prefix")));
-            if (hasCustomer)
-                b.filter(f -> f.term(t -> t.field("customerId").value(query.customerId())));
-            if (hasSeller)
-                b.filter(f -> f.term(t -> t.field("sellers.id").value(query.salespersonId())));
-            if (hasFrom || hasTo) {
-                b.filter(f -> f.range(r -> r.date(d -> {
-                    d.field("issueDate");
-                    if (hasFrom) d.gte(query.from().toString());
-                    if (hasTo)   d.lte(query.to().toString());
-                    return d;
-                })));
-            }
+            if (hasQ)        b.must(textSearchQuery(query.q()));
+            if (hasCustomer) b.filter(customerIdFilter(query.customerId()));
+            if (hasSeller)   b.filter(sellerIdFilter(query.salespersonId()));
+            if (hasDateRange) b.filter(issueDateRangeFilter(query.from(), query.to()));
             return b;
         });
+    }
+
+    private Query textSearchQuery(String q) {
+        return Query.of(m -> m.multiMatch(mm -> mm
+                .query(q)
+                .type(TextQueryType.BoolPrefix)
+                .fields("customerName", "customerName._2gram",
+                        "customerName._3gram", "customerName._index_prefix")));
+    }
+
+    private Query customerIdFilter(Long customerId) {
+        return Query.of(f -> f.term(t -> t.field("customerId").value(customerId)));
+    }
+
+    private Query sellerIdFilter(Long salespersonId) {
+        return Query.of(f -> f.term(t -> t.field("sellers.id").value(salespersonId)));
+    }
+
+    private Query issueDateRangeFilter(LocalDate from, LocalDate to) {
+        return Query.of(f -> f.range(r -> r.date(d -> {
+            d.field("issueDate");
+            if (from != null) d.gte(from.toString());
+            if (to != null)   d.lte(to.toString());
+            return d;
+        })));
     }
 }

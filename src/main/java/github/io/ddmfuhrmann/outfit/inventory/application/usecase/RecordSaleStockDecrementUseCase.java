@@ -6,6 +6,7 @@ import github.io.ddmfuhrmann.outfit.sales.domain.event.SaleConfirmed;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Instant;
 
 @Service
@@ -13,9 +14,11 @@ import java.time.Instant;
 public class RecordSaleStockDecrementUseCase {
 
     private final StockMovementService stockMovementService;
+    private final Clock clock;
 
-    public RecordSaleStockDecrementUseCase(StockMovementService stockMovementService) {
+    public RecordSaleStockDecrementUseCase(StockMovementService stockMovementService, Clock clock) {
         this.stockMovementService = stockMovementService;
+        this.clock = clock;
     }
 
     public void execute(SaleConfirmed event) {
@@ -23,12 +26,13 @@ public class RecordSaleStockDecrementUseCase {
             return;
         }
 
+        Instant now = Instant.now(clock);
         for (var item : event.items()) {
             stockMovementService.recordEntry(
                     item.skuId(), item.productId(),
                     -item.quantity(),
                     StockSource.SALE, event.saleId(),
-                    Instant.now());
+                    now);
         }
     }
 }

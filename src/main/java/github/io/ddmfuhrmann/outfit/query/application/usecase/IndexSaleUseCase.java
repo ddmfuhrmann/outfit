@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.Clock;
 import java.time.Instant;
 
 @Slf4j
@@ -19,9 +20,11 @@ import java.time.Instant;
 public class IndexSaleUseCase {
 
     private final ElasticsearchClient esClient;
+    private final Clock clock;
 
-    public IndexSaleUseCase(ElasticsearchClient esClient) {
+    public IndexSaleUseCase(ElasticsearchClient esClient, Clock clock) {
         this.esClient = esClient;
+        this.clock = clock;
     }
 
     public void execute(SaleConfirmed event) {
@@ -54,7 +57,7 @@ public class IndexSaleUseCase {
                 sellers,
                 items,
                 installments,
-                Instant.now());
+                Instant.now(clock));
 
         try {
             esClient.index(i -> i

@@ -20,6 +20,7 @@ import org.springframework.http.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -114,7 +115,7 @@ class StockRecountControllerIT extends AbstractIT {
 
         // Open recount → 201
         var openResp = rest.exchange("/inventory/recount", HttpMethod.POST,
-                new HttpEntity<>(new OpenStockRecountRequest(LocalDate.now(), "cycle count"), headers),
+                new HttpEntity<>(new OpenStockRecountRequest(LocalDate.of(2025, Month.JUNE, 4), "cycle count"), headers),
                 Map.class);
         assertThat(openResp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         long recountId = Long.parseLong(openResp.getBody().get("id").toString());

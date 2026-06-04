@@ -102,12 +102,12 @@ public class Consignment extends BaseAggregate<Consignment> {
         registerEvent(new ConsignmentItemsReturned(getId(), List.copyOf(returnedSnapshots)));
     }
 
-    public void close() {
+    public void close(Instant now) {
         if (status != ConsignmentStatus.OPEN)
             throw new IllegalStateException("consignment is already closed");
 
         status = ConsignmentStatus.CLOSED;
-        closedAt = Instant.now();
+        closedAt = now;
 
         var soldItems = items.stream()
                 .filter(i -> i.getQuantitySold() > 0)

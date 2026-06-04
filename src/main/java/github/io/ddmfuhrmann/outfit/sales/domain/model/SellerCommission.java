@@ -60,62 +60,81 @@ public class SellerCommission extends BaseAggregate<SellerCommission> {
 
     protected SellerCommission() {}
 
-    public static SellerCommission create(Long saleId, Long salespersonId, LocalDate saleDate,
-                                          BigDecimal commissionPercent, BigDecimal netAmount,
-                                          BigDecimal sharePercent,
-                                          List<SaleInstallmentSnapshot> installments,
-                                          BigDecimal bonusPercent) {
-        if (saleId == null) throw new IllegalArgumentException("saleId is required");
-        if (salespersonId == null) throw new IllegalArgumentException("salespersonId is required");
-        if (commissionPercent == null) throw new IllegalArgumentException("commissionPercent is required");
-        if (netAmount == null) throw new IllegalArgumentException("netAmount is required");
-        if (sharePercent == null) throw new IllegalArgumentException("sharePercent is required");
+    public static Builder builder() {
+        return new Builder();
+    }
 
-        BigDecimal sellerNetAmount = netAmount.multiply(sharePercent).divide(HUNDRED, 2, RoundingMode.HALF_UP);
+    public static class Builder {
+        private Long saleId;
+        private Long salespersonId;
+        private LocalDate saleDate;
+        private BigDecimal commissionPercent;
+        private BigDecimal netAmount;
+        private BigDecimal sharePercent;
+        private List<SaleInstallmentSnapshot> installments;
+        private BigDecimal bonusPercent;
 
-        BigDecimal immediate = installments.stream()
-                .filter(i -> !i.isDeferred())
-                .map(SaleInstallmentSnapshot::amount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .multiply(sharePercent).divide(HUNDRED, 2, RoundingMode.HALF_UP);
+        public Builder saleId(Long saleId)                             { this.saleId = saleId; return this; }
+        public Builder salespersonId(Long salespersonId)               { this.salespersonId = salespersonId; return this; }
+        public Builder saleDate(LocalDate saleDate)                    { this.saleDate = saleDate; return this; }
+        public Builder commissionPercent(BigDecimal commissionPercent) { this.commissionPercent = commissionPercent; return this; }
+        public Builder netAmount(BigDecimal netAmount)                  { this.netAmount = netAmount; return this; }
+        public Builder sharePercent(BigDecimal sharePercent)           { this.sharePercent = sharePercent; return this; }
+        public Builder installments(List<SaleInstallmentSnapshot> installments) { this.installments = installments; return this; }
+        public Builder bonusPercent(BigDecimal bonusPercent)           { this.bonusPercent = bonusPercent; return this; }
 
-        BigDecimal deferred = installments.stream()
-                .filter(SaleInstallmentSnapshot::isDeferred)
-                .map(SaleInstallmentSnapshot::amount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .multiply(sharePercent).divide(HUNDRED, 2, RoundingMode.HALF_UP);
+        public SellerCommission build() {
+            if (saleId == null) throw new IllegalArgumentException("saleId is required");
+            if (salespersonId == null) throw new IllegalArgumentException("salespersonId is required");
+            if (commissionPercent == null) throw new IllegalArgumentException("commissionPercent is required");
+            if (netAmount == null) throw new IllegalArgumentException("netAmount is required");
+            if (sharePercent == null) throw new IllegalArgumentException("sharePercent is required");
 
-        BigDecimal base = immediate.add(deferred.multiply(DEFERRED_WEIGHT)).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal earned = base.multiply(commissionPercent).divide(HUNDRED, 2, RoundingMode.HALF_UP);
+            BigDecimal sellerNetAmount = netAmount.multiply(sharePercent).divide(HUNDRED, 2, RoundingMode.HALF_UP);
 
-        BigDecimal bonus = (bonusPercent != null && bonusPercent.compareTo(BigDecimal.ZERO) > 0)
-                ? sellerNetAmount.multiply(bonusPercent).divide(HUNDRED, 2, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
+            BigDecimal immediate = installments.stream()
+                    .filter(i -> !i.isDeferred())
+                    .map(SaleInstallmentSnapshot::amount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                    .multiply(sharePercent).divide(HUNDRED, 2, RoundingMode.HALF_UP);
 
-        BigDecimal pending = deferred.multiply(commissionPercent).divide(HUNDRED, 2, RoundingMode.HALF_UP);
+            BigDecimal deferred = installments.stream()
+                    .filter(SaleInstallmentSnapshot::isDeferred)
+                    .map(SaleInstallmentSnapshot::amount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                    .multiply(sharePercent).divide(HUNDRED, 2, RoundingMode.HALF_UP);
 
-        CommissionStatus commissionStatus;
-        if (pending.compareTo(BigDecimal.ZERO) == 0) {
-            commissionStatus = CommissionStatus.EARNED;
-        } else if (earned.compareTo(BigDecimal.ZERO) > 0) {
-            commissionStatus = CommissionStatus.PARTIAL;
-        } else {
-            commissionStatus = CommissionStatus.PENDING;
+            BigDecimal base = immediate.add(deferred.multiply(DEFERRED_WEIGHT)).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal earned = base.multiply(commissionPercent).divide(HUNDRED, 2, RoundingMode.HALF_UP);
+
+            BigDecimal bonus = (bonusPercent != null && bonusPercent.compareTo(BigDecimal.ZERO) > 0)
+                    ? sellerNetAmount.multiply(bonusPercent).divide(HUNDRED, 2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+
+            BigDecimal pending = deferred.multiply(commissionPercent).divide(HUNDRED, 2, RoundingMode.HALF_UP);
+
+            CommissionStatus commissionStatus = resolveStatus(pending, earned);
+
+            var commission = new SellerCommission();
+            commission.saleId = saleId;
+            commission.salespersonId = salespersonId;
+            commission.saleDate = saleDate;
+            commission.commissionPercent = commissionPercent;
+            commission.immediateAmount = immediate;
+            commission.deferredAmount = deferred;
+            commission.commissionBase = base;
+            commission.earnedAmount = earned;
+            commission.bonusAmount = bonus;
+            commission.pendingAmount = pending;
+            commission.netAmount = sellerNetAmount;
+            commission.status = commissionStatus;
+            return commission;
         }
 
-        var commission = new SellerCommission();
-        commission.saleId = saleId;
-        commission.salespersonId = salespersonId;
-        commission.saleDate = saleDate;
-        commission.commissionPercent = commissionPercent;
-        commission.immediateAmount = immediate;
-        commission.deferredAmount = deferred;
-        commission.commissionBase = base;
-        commission.earnedAmount = earned;
-        commission.bonusAmount = bonus;
-        commission.pendingAmount = pending;
-        commission.netAmount = sellerNetAmount;
-        commission.status = commissionStatus;
-        return commission;
+        private CommissionStatus resolveStatus(BigDecimal pending, BigDecimal earned) {
+            if (pending.compareTo(BigDecimal.ZERO) == 0) return CommissionStatus.EARNED;
+            if (earned.compareTo(BigDecimal.ZERO) > 0)  return CommissionStatus.PARTIAL;
+            return CommissionStatus.PENDING;
+        }
     }
 }

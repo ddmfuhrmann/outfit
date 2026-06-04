@@ -4,6 +4,7 @@ import github.io.ddmfuhrmann.outfit.shared.application.dto.LoginRequest;
 import github.io.ddmfuhrmann.outfit.shared.application.dto.LoginResponse;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -14,6 +15,7 @@ import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
+@Import(FixedClockConfig.class)
 public abstract class AbstractIT {
 
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16");
