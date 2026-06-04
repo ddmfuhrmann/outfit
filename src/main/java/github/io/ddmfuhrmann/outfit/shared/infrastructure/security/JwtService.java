@@ -11,6 +11,7 @@ import javax.crypto.SecretKey;
 import java.time.Instant;
 import java.util.Date;
 
+@SuppressWarnings("java:S2143") // JJWT 0.12 requires java.util.Date; parser validates against system clock — cannot inject Clock here
 @Service
 public class JwtService {
 
@@ -22,7 +23,7 @@ public class JwtService {
 
     public String generateToken(User user) {
         Instant now = Instant.now();
-        Instant expiry = now.plusSeconds(props.getExpirationMinutes() * 60);
+        Instant expiry = now.plusSeconds(props.getExpirationMinutes() * 60L);
         return Jwts.builder()
                 .subject(user.getLogin())
                 .claim("name", user.getName())
@@ -51,7 +52,7 @@ public class JwtService {
     }
 
     private boolean isExpired(String token) {
-        return parseClaims(token).getExpiration().before(new Date());
+        return parseClaims(token).getExpiration().toInstant().isBefore(Instant.now());
     }
 
     private Claims parseClaims(String token) {

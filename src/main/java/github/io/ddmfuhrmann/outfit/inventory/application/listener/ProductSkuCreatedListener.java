@@ -5,19 +5,22 @@ import github.io.ddmfuhrmann.outfit.inventory.application.usecase.RecordInitialS
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
 import java.time.Instant;
 
 @Component
 public class ProductSkuCreatedListener {
 
     private final RecordInitialStockUseCase recordInitialStock;
+    private final Clock clock;
 
-    public ProductSkuCreatedListener(RecordInitialStockUseCase recordInitialStock) {
+    public ProductSkuCreatedListener(RecordInitialStockUseCase recordInitialStock, Clock clock) {
         this.recordInitialStock = recordInitialStock;
+        this.clock = clock;
     }
 
     @ApplicationModuleListener
     public void on(ProductSkuCreated event) {
-        recordInitialStock.execute(event.skuId(), event.productId(), event.implantationQty(), Instant.now());
+        recordInitialStock.execute(event.skuId(), event.productId(), event.implantationQty(), Instant.now(clock));
     }
 }

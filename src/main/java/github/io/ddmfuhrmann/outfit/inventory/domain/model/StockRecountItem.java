@@ -12,6 +12,7 @@ public class StockRecountItem extends BaseEntity {
     private Long stockRecountId;
     private Long productSkuId;
     private int countedQty;
+    @SuppressWarnings("java:S1450") // persistent JPA field — written by recordSystemBalance, read via getter
     private Integer systemBalance;
 
     protected StockRecountItem() {}

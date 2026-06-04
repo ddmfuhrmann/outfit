@@ -50,6 +50,8 @@ class InventoryControllerIT extends AbstractIT {
     @Autowired
     TestRestTemplate rest;
 
+    private static final Instant ADJUSTMENT_TIME = Instant.parse("2025-06-04T01:00:00Z");
+
     @Autowired
     StockBalanceRepository balanceRepository;
 
@@ -107,7 +109,7 @@ class InventoryControllerIT extends AbstractIT {
 
         captor.reset();
 
-        var adjustRequest = new ManualAdjustmentRequest(skuId, 25, Instant.now());
+        var adjustRequest = new ManualAdjustmentRequest(skuId, 25, ADJUSTMENT_TIME);
         var resp = rest.exchange("/inventory/adjustment", HttpMethod.POST,
                 new HttpEntity<>(adjustRequest, headers), Void.class);
 
@@ -134,7 +136,7 @@ class InventoryControllerIT extends AbstractIT {
         var product = createProduct(headers, brandId, categoryId, sizeId, "SAME-" + ts, 20);
         var skuId = product.skus().getFirst().id();
 
-        var adjustRequest = new ManualAdjustmentRequest(skuId, 20, Instant.now());
+        var adjustRequest = new ManualAdjustmentRequest(skuId, 20, ADJUSTMENT_TIME);
         var resp = rest.exchange("/inventory/adjustment", HttpMethod.POST,
                 new HttpEntity<>(adjustRequest, headers), Void.class);
 
@@ -144,7 +146,7 @@ class InventoryControllerIT extends AbstractIT {
     @Test
     void manualAdjustment_unknownSku_returns404() {
         var headers = authHeaders(rest);
-        var adjustRequest = new ManualAdjustmentRequest(999_999_999L, 10, Instant.now());
+        var adjustRequest = new ManualAdjustmentRequest(999_999_999L, 10, ADJUSTMENT_TIME);
         var resp = rest.exchange("/inventory/adjustment", HttpMethod.POST,
                 new HttpEntity<>(adjustRequest, headers), Void.class);
 
@@ -161,7 +163,7 @@ class InventoryControllerIT extends AbstractIT {
         var product = createProduct(headers, brandId, categoryId, sizeId, "MOV-" + ts, 20);
         var skuId = product.skus().getFirst().id();
 
-        var adjustRequest = new ManualAdjustmentRequest(skuId, 25, Instant.now());
+        var adjustRequest = new ManualAdjustmentRequest(skuId, 25, ADJUSTMENT_TIME);
         rest.exchange("/inventory/adjustment", HttpMethod.POST,
                 new HttpEntity<>(adjustRequest, headers), Void.class);
 

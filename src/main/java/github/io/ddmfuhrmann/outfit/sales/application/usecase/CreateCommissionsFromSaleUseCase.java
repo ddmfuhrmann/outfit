@@ -45,15 +45,16 @@ public class CreateCommissionsFromSaleUseCase {
             BigDecimal commissionPercent = details.commissionPercent() != null
                     ? details.commissionPercent() : BigDecimal.ZERO;
 
-            var commission = SellerCommission.create(
-                    sale.getId(),
-                    seller.getSalespersonId(),
-                    sale.getIssueDate(),
-                    commissionPercent,
-                    sale.getNetAmount(),
-                    seller.getSharePercent(),
-                    installmentSnapshots,
-                    bonusPercent);
+            var commission = SellerCommission.builder()
+                    .saleId(sale.getId())
+                    .salespersonId(seller.getSalespersonId())
+                    .saleDate(sale.getIssueDate())
+                    .commissionPercent(commissionPercent)
+                    .netAmount(sale.getNetAmount())
+                    .sharePercent(seller.getSharePercent())
+                    .installments(installmentSnapshots)
+                    .bonusPercent(bonusPercent)
+                    .build();
             commissions.add(commission);
         }
 

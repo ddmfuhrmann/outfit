@@ -19,6 +19,7 @@ import org.springframework.http.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -30,6 +31,7 @@ class StoreCreditNoteControllerIT extends AbstractIT {
     TestRestTemplate rest;
 
     private static final AtomicInteger CPF_SEED = new AtomicInteger(800);
+    private static final LocalDate SALE_DATE = LocalDate.of(2025, Month.JUNE, 4);
 
     private static String generateCpf() {
         int base = CPF_SEED.incrementAndGet();
@@ -129,7 +131,7 @@ class StoreCreditNoteControllerIT extends AbstractIT {
                 s.customerId(),
                 SaleOrigin.DIRECT,
                 null,
-                LocalDate.now(),
+                SALE_DATE,
                 storeCreditNoteId,
                 null,
                 null,
@@ -137,7 +139,7 @@ class StoreCreditNoteControllerIT extends AbstractIT {
                 // netAmount will be 300 - discount; installment must match netAmount
                 // We supply full gross here and let the use case cap the discount.
                 // For a note of 50 (totalAmount), discount = 50, netAmount = 250
-                List.of(new CreateSaleInstallmentRequest(PaymentModality.PIX, LocalDate.now(), BigDecimal.valueOf(250.00))),
+                List.of(new CreateSaleInstallmentRequest(PaymentModality.PIX, SALE_DATE, BigDecimal.valueOf(250.00))),
                 List.of(new CreateSaleSellerRequest(s.salespersonId(), new BigDecimal("100"))));
         var resp = rest.exchange("/sales", HttpMethod.POST,
                 new HttpEntity<>(req, headers), SaleResponse.class);
@@ -260,12 +262,12 @@ class StoreCreditNoteControllerIT extends AbstractIT {
                 s.customerId(),
                 SaleOrigin.DIRECT,
                 null,
-                LocalDate.now(),
+                SALE_DATE,
                 note.id(),
                 null,
                 null,
                 List.of(new CreateSaleItemRequest(s.skuId(), s.productId(), 1, BigDecimal.valueOf(100.00))),
-                List.of(new CreateSaleInstallmentRequest(PaymentModality.PIX, LocalDate.now(), BigDecimal.valueOf(100.00))),
+                List.of(new CreateSaleInstallmentRequest(PaymentModality.PIX, SALE_DATE, BigDecimal.valueOf(100.00))),
                 List.of(new CreateSaleSellerRequest(s.salespersonId(), new BigDecimal("100"))));
         var resp = rest.exchange("/sales", HttpMethod.POST,
                 new HttpEntity<>(req, headers), String.class);

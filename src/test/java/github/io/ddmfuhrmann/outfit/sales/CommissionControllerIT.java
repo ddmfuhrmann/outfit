@@ -18,6 +18,7 @@ import org.springframework.http.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -29,6 +30,7 @@ class CommissionControllerIT extends AbstractIT {
     TestRestTemplate rest;
 
     private static final AtomicInteger CPF_SEED = new AtomicInteger(900);
+    private static final LocalDate SALE_DATE = LocalDate.of(2025, Month.JUNE, 4);
 
     private static String generateCpf() {
         int base = CPF_SEED.incrementAndGet();
@@ -121,12 +123,12 @@ class CommissionControllerIT extends AbstractIT {
                 s.customerId(),
                 SaleOrigin.DIRECT,
                 null,
-                LocalDate.now(),
+                SALE_DATE,
                 null,
                 null,
                 null,
                 List.of(new CreateSaleItemRequest(s.skuId(), s.productId(), qty, unitPrice)),
-                List.of(new CreateSaleInstallmentRequest(modality, LocalDate.now().plusDays(30), total)),
+                List.of(new CreateSaleInstallmentRequest(modality, SALE_DATE.plusDays(30), total)),
                 List.of(new CreateSaleSellerRequest(s.salespersonId(), new BigDecimal("100"))));
         var resp = rest.exchange("/sales", HttpMethod.POST,
                 new HttpEntity<>(req, headers), SaleResponse.class);

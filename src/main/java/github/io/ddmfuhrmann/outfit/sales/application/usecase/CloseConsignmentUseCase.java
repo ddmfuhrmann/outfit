@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 
 @Slf4j
@@ -24,18 +26,21 @@ public class CloseConsignmentUseCase {
 
     private final ConsignmentRepository repository;
     private final CreateSaleUseCase createSale;
+    private final Clock clock;
 
     public CloseConsignmentUseCase(ConsignmentRepository repository,
-                                   CreateSaleUseCase createSale) {
+                                   CreateSaleUseCase createSale,
+                                   Clock clock) {
         this.repository = repository;
         this.createSale = createSale;
+        this.clock = clock;
     }
 
     public SaleResponse execute(Long consignmentId, CloseConsignmentRequest request) {
         var consignment = repository.findById(consignmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Consignment not found: " + consignmentId));
 
-        consignment.close();
+        consignment.close(Instant.now(clock));
         repository.save(consignment);
         log.info("Consignment {} closed", consignmentId);
 

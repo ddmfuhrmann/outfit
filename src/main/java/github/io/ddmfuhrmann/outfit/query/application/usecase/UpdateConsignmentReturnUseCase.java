@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.stream.Collectors;
 
@@ -20,9 +21,11 @@ import java.util.stream.Collectors;
 public class UpdateConsignmentReturnUseCase {
 
     private final ElasticsearchClient esClient;
+    private final Clock clock;
 
-    public UpdateConsignmentReturnUseCase(ElasticsearchClient esClient) {
+    public UpdateConsignmentReturnUseCase(ElasticsearchClient esClient, Clock clock) {
         this.esClient = esClient;
+        this.clock = clock;
     }
 
     public void execute(ConsignmentItemsReturned event) {
@@ -56,7 +59,7 @@ public class UpdateConsignmentReturnUseCase {
             var updated = new ConsignmentDocument(
                     doc.consignmentId(), doc.status(), doc.issueDate(), doc.closedAt(),
                     doc.customerName(), doc.customer(), doc.sellers(), updatedItems,
-                    Instant.now());
+                    Instant.now(clock));
 
             esClient.index(i -> i
                     .index(ElasticsearchIndexInitializer.INDEX_CONSIGNMENTS)

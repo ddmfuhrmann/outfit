@@ -19,6 +19,7 @@ import org.springframework.http.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -30,6 +31,7 @@ class SaleConfirmedListenerIT extends AbstractIT {
     TestRestTemplate rest;
 
     private static final AtomicInteger CPF_SEED = new AtomicInteger(600);
+    private static final LocalDate SALE_DATE = LocalDate.of(2025, Month.JUNE, 4);
 
     private static String generateCpf() {
         int base = CPF_SEED.incrementAndGet();
@@ -131,12 +133,12 @@ class SaleConfirmedListenerIT extends AbstractIT {
                 s.customerId(),
                 SaleOrigin.DIRECT,
                 null,
-                LocalDate.now(),
+                SALE_DATE,
                 null,
                 null,
                 null,
                 List.of(new CreateSaleItemRequest(s.skuId(), s.productId(), 4, BigDecimal.valueOf(150.00))),
-                List.of(new CreateSaleInstallmentRequest(PaymentModality.PIX, LocalDate.now(), BigDecimal.valueOf(600.00))),
+                List.of(new CreateSaleInstallmentRequest(PaymentModality.PIX, SALE_DATE, BigDecimal.valueOf(600.00))),
                 List.of(new CreateSaleSellerRequest(s.salespersonId(), new BigDecimal("100"))));
 
         var resp = rest.exchange("/sales", HttpMethod.POST,
@@ -161,7 +163,7 @@ class SaleConfirmedListenerIT extends AbstractIT {
         var issueReq = new IssueConsignmentRequest(
                 s.customerId(),
                 List.of(s.salespersonId()),
-                LocalDate.now(),
+                SALE_DATE,
                 "double-decrement test",
                 List.of(new ConsignmentItemRequest(s.skuId(), s.productId(), 5, BigDecimal.valueOf(150.00))));
         var issueResp = rest.exchange("/consignments", HttpMethod.POST,
@@ -172,7 +174,7 @@ class SaleConfirmedListenerIT extends AbstractIT {
         // Close consignment → creates a CONSIGNMENT-origin sale
         var closeReq = new CloseConsignmentRequest(
                 List.of(s.salespersonId()),
-                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, LocalDate.now(), BigDecimal.valueOf(750.00))));
+                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, SALE_DATE, BigDecimal.valueOf(750.00))));
         var closeResp = rest.exchange("/consignments/" + consignmentId + "/close", HttpMethod.POST,
                 new HttpEntity<>(closeReq, headers), SaleResponse.class);
         assertThat(closeResp.getStatusCode()).isEqualTo(HttpStatus.CREATED);

@@ -18,6 +18,7 @@ import org.springframework.http.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -116,7 +117,7 @@ class SaleQueryControllerIT extends AbstractIT {
     }
 
     private SaleResponse createSale(HttpHeaders headers, TestSetup s) {
-        return createSale(headers, s, LocalDate.now());
+        return createSale(headers, s, LocalDate.of(2025, Month.JUNE, 4));
     }
 
     private SaleResponse createSale(HttpHeaders headers, TestSetup s, LocalDate issueDate) {
@@ -234,7 +235,7 @@ class SaleQueryControllerIT extends AbstractIT {
         var headers = authHeaders(rest);
         var s = setup(headers);
 
-        LocalDate targetDate = LocalDate.of(2026, 1, 15);
+        LocalDate targetDate = LocalDate.of(2026, Month.JANUARY, 15);
         var sale = createSale(headers, s, targetDate);
 
         var resp = rest.exchange(

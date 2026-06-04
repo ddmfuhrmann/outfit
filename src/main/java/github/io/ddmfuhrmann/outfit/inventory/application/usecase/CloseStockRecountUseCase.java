@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -28,28 +29,32 @@ public class CloseStockRecountUseCase {
     private final StockBalanceRepository balanceRepository;
     private final StockEntryRepository entryRepository;
     private final StockMovementService stockMovementService;
+    private final Clock clock;
 
     public CloseStockRecountUseCase(StockRecountRepository recountRepository,
                                     StockBalanceRepository balanceRepository,
                                     StockEntryRepository entryRepository,
-                                    StockMovementService stockMovementService) {
+                                    StockMovementService stockMovementService,
+                                    Clock clock) {
         this.recountRepository = recountRepository;
         this.balanceRepository = balanceRepository;
         this.entryRepository = entryRepository;
         this.stockMovementService = stockMovementService;
+        this.clock = clock;
     }
 
     public void execute(Long recountId) {
         var recount = recountRepository.findById(recountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Stock recount not found: " + recountId));
 
-        var items = recount.close();
+        Instant now = Instant.now(clock);
+        var items = recount.close(now);
         var skuIds = items.stream().map(StockRecountItem::getProductSkuId).toList();
 
         var balancesBySkuId = fetchBalances(skuIds);
         var productIdBySkuId = fetchProductIds(skuIds);
 
-        applyAdjustments(items, balancesBySkuId, productIdBySkuId, recount.getId(), Instant.now());
+        applyAdjustments(items, balancesBySkuId, productIdBySkuId, recount.getId(), now);
 
         recountRepository.save(recount);
         log.info("Stock recount closed: id={}", recountId);

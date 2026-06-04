@@ -44,7 +44,7 @@ Every plan **must** include an `## API tests` section listing which `api-tests/*
 | `.skills/benchmark-execution.md` | Load testing methodology |
 | `.skills/database-seeding.md` | Realistic data for perf tests |
 | `.skills/optimization-reporting.md` | Optimization report format |
-| `.skills/sonar-analysis.md` | SonarQube static analysis (opt-in: requires `sonar-project.properties`) |
+| `.skills/sonar-analysis.md` | SonarQube static analysis (opt-in: `sonar-project.properties` is present — analysis runs automatically as part of `/code-review`) |
 
 ---
 
@@ -129,6 +129,7 @@ Each module follows clean architecture layers:
 - **Monetary values:** `BigDecimal` in Java, `NUMERIC(15,2)` in PostgreSQL — no `float` or `double`.
 - **Enums:** stored as `VARCHAR`, not ordinal integers.
 - **Timestamps:** UTC in Java, `TIMESTAMPTZ` in PostgreSQL.
+- **Clock injection:** never call `Instant.now()` directly in production code. Inject `java.time.Clock` and call `Instant.now(clock)`. The `Clock` bean is registered in `shared/infrastructure/ClockConfig` (`@Profile("!test")`). Tests use `FixedClockConfig` (imported via `AbstractIT`) which fixes the clock at `2025-06-04T00:00:00Z`, making all timestamp-dependent assertions deterministic. **Exception:** `JwtService` — JJWT 0.12's parser validates token expiry against the system clock internally; injecting a fixed past clock would expire all tokens. Domain methods that need the current time receive `Instant now` as a parameter (e.g., `StockRecount.close(Instant now)`) — the use case passes `Instant.now(clock)` at the call site.
 - **Pagination:** all list responses use the standard `PageResponse<T>` wrapper.
 - **List access:** use `getFirst()` instead of `get(0)` when accessing the first element of a list (Java 21+).
 - **OpenAPI:** spec served at `/docs` via SpringDoc.

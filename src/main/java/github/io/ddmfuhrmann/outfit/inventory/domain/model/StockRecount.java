@@ -21,6 +21,7 @@ public class StockRecount extends BaseAggregate<StockRecount> {
     @Enumerated(EnumType.STRING)
     private StockRecountStatus status;
 
+    @SuppressWarnings("java:S1450") // persistent JPA field — read via @Getter, not directly in class body
     private Instant closedAt;
 
     @OneToMany(mappedBy = "stockRecountId", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -49,12 +50,12 @@ public class StockRecount extends BaseAggregate<StockRecount> {
         return item;
     }
 
-    public List<StockRecountItem> close() {
+    public List<StockRecountItem> close(Instant now) {
         if (status == StockRecountStatus.CLOSED) {
             throw new IllegalStateException("Recount is already closed");
         }
         status = StockRecountStatus.CLOSED;
-        closedAt = Instant.now();
+        closedAt = now;
         return Collections.unmodifiableList(items);
     }
 }

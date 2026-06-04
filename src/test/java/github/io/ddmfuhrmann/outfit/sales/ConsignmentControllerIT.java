@@ -18,6 +18,7 @@ import org.springframework.http.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,6 +27,8 @@ class ConsignmentControllerIT extends AbstractIT {
 
     @Autowired
     TestRestTemplate rest;
+
+    private static final LocalDate SALE_DATE = LocalDate.of(2025, Month.JUNE, 4);
 
     private record TestSetup(Long skuIdA, Long productIdA, Long skuIdB, Long productIdB,
                              Long customerId, Long salespersonId) {}
@@ -103,7 +106,7 @@ class ConsignmentControllerIT extends AbstractIT {
         return new IssueConsignmentRequest(
                 s.customerId(),
                 List.of(s.salespersonId()),
-                LocalDate.now(),
+                SALE_DATE,
                 "test consignment",
                 List.of(
                         new ConsignmentItemRequest(s.skuIdA(), s.productIdA(), 5, BigDecimal.valueOf(150.00)),
@@ -220,7 +223,7 @@ class ConsignmentControllerIT extends AbstractIT {
 
         var closeReq = new CloseConsignmentRequest(
                 List.of(s.salespersonId()),
-                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, LocalDate.now(), BigDecimal.valueOf(1350.00)))
+                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, SALE_DATE, BigDecimal.valueOf(1350.00)))
         );
         rest.exchange("/consignments/" + consignmentId + "/close", HttpMethod.POST,
                 new HttpEntity<>(closeReq, headers), Void.class);
@@ -240,7 +243,7 @@ class ConsignmentControllerIT extends AbstractIT {
 
         var closeReq = new CloseConsignmentRequest(
                 List.of(s.salespersonId()),
-                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, LocalDate.now(), BigDecimal.valueOf(1350.00)))
+                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, SALE_DATE, BigDecimal.valueOf(1350.00)))
         );
         var resp = rest.exchange("/consignments/" + consignmentId + "/close", HttpMethod.POST,
                 new HttpEntity<>(closeReq, headers), SaleResponse.class);
@@ -258,7 +261,7 @@ class ConsignmentControllerIT extends AbstractIT {
 
         var closeReq = new CloseConsignmentRequest(
                 List.of(s.salespersonId()),
-                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, LocalDate.now(), BigDecimal.valueOf(1350.00)))
+                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, SALE_DATE, BigDecimal.valueOf(1350.00)))
         );
         var first = rest.exchange("/consignments/" + consignmentId + "/close", HttpMethod.POST,
                 new HttpEntity<>(closeReq, headers), Void.class);
