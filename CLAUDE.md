@@ -2,6 +2,40 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow (behavioral-sdd)
+
+No code is written without a saved plan in `.plans/`.
+
+```
+/bsdd-prd (optional)  →  /bsdd-plan  →  /bsdd-implement <title>  →  /bsdd-ship
+```
+
+- For a larger feature: `/bsdd-prd` (grill-me → saves `.prds/`) → `/bsdd-plan`
+- For a known task or existing PRD: `/bsdd-plan` directly (feed the PRD file as input)
+- Existing `docs/prd/` files are valid, rich input to `/bsdd-plan`
+- `docs/tasks/` files are historical (completed phases 01–04) — new sessions use `.plans/`
+
+### Active skills
+
+| Skill | Purpose |
+|---|---|
+| `.skills/caveman.md` | Ultra-compressed output (always active) |
+| `.skills/karpathy-guidelines.md` | Think before coding, simplicity, surgical changes (always active) |
+| `.skills/code-style.md` | Java/Spring naming, Lombok rules, factory methods, DTO patterns |
+| `.skills/error-handling.md` | Exception hierarchy, GlobalExceptionHandler, no catch+log in use cases |
+| `.skills/testing-strategy.md` | AbstractIT, Testcontainers, write→index→query pattern, naming |
+| `.skills/plan-first-development.md` | Plan discipline rules and checklist |
+| `.skills/diff-review.md` | Review process and severity labeling |
+| `.skills/grill-me.md` | Plan challenge methodology |
+| `.skills/edge-case-generation.md` | Systematic edge case discovery |
+| `.skills/postgres-explain-analyze.md` | Query analysis with EXPLAIN ANALYZE |
+| `.skills/benchmark-execution.md` | Load testing methodology |
+| `.skills/database-seeding.md` | Realistic data for perf tests |
+| `.skills/optimization-reporting.md` | Optimization report format |
+| `.skills/sonar-analysis.md` | SonarQube static analysis (opt-in: requires `sonar-project.properties`) |
+
+---
+
 ## Commands
 
 ```bash

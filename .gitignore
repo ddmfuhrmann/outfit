@@ -36,5 +36,10 @@ out/
 
 ### VS Code ###
 .vscode/
-.claude/
+.claude/worktrees/
+.claude/settings.local.json
 .cursor/
+
+### behavioral-sdd ###
+.current-plan.md
+.bsdd-sonar-token
