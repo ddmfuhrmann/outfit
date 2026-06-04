@@ -15,6 +15,18 @@ No code is written without a saved plan in `.plans/`.
 - Existing `docs/prd/` files are valid, rich input to `/bsdd-plan`
 - `docs/tasks/` files are historical (completed phases 01–04) — new sessions use `.plans/`
 
+### api-tests requirement
+
+Every plan **must** include an `## API tests` section listing which `api-tests/*.http` files will be created or updated. Every implementation **must** produce those files as part of the deliverable.
+
+`api-tests/` files use IntelliJ HTTP Client format:
+- Steps are numbered and commented (`### Step N — Description`)
+- Each step that returns an ID captures it via `> {% client.global.set("varName", response.body.id); %}`
+- Use `{{run}}` (set to `String(Date.now())` in the login step) for unique string fields to avoid constraint conflicts on re-runs
+- Use `{{$uuid}}` for barcode/unique fields
+- End with an `### --- Error cases ---` section covering 4xx responses
+- File name follows the feature/flow (e.g., `sale-flow.http`, `store-credit-flow.http`)
+
 ### Active skills
 
 | Skill | Purpose |

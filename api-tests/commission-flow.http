@@ -1,0 +1,264 @@
+### Step 1 — Login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "login": "admin",
+  "password": "admin"
+}
+
+> {%
+  client.global.set("token", response.body.token);
+  client.global.set("run", String(Date.now()));
+%}
+
+###
+
+### Step 2 — POST /commission-bonus-tiers — tier for range [100, 1000], bonusPercent=2
+POST {{host}}/commission-bonus-tiers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "minAmount": 100.00,
+  "maxAmount": 1000.00,
+  "bonusPercent": 2.00
+}
+
+> {%
+  client.global.set("tierId", response.body.id);
+%}
+
+###
+
+### Step 3 — Create customer
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "INDIVIDUAL",
+  "cpf": "33333333309",
+  "legalName": "Cliente Commission {{run}}",
+  "name": "Cliente Commission {{run}}",
+  "customer": true,
+  "supplier": false,
+  "salesperson": false
+}
+
+> {%
+  client.global.set("customerId", response.body.id);
+%}
+
+###
+
+### Step 3b — Create salesperson
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "INDIVIDUAL",
+  "cpf": "22222222202",
+  "legalName": "Vendedor Commission {{run}}",
+  "name": "Vendedor Commission {{run}}",
+  "customer": false,
+  "supplier": false,
+  "salesperson": true,
+  "commissionPercent": 5.00
+}
+
+> {%
+  client.global.set("salespersonId", response.body.id);
+%}
+
+###
+
+### Step 3c — Create brand
+POST {{host}}/catalog/brands
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Commission Brand {{run}}"
+}
+
+> {%
+  client.global.set("brandId", response.body.id);
+%}
+
+###
+
+### Step 3d — Create category
+POST {{host}}/catalog/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Commission Category {{run}}",
+  "parentId": null
+}
+
+> {%
+  client.global.set("categoryId", response.body.id);
+%}
+
+###
+
+### Step 3e — Create size
+POST {{host}}/catalog/sizes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "M"
+}
+
+> {%
+  client.global.set("sizeId", response.body.id);
+%}
+
+###
+
+### Step 3f — Create product with 1 SKU
+POST {{host}}/catalog/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Commission Product {{run}}",
+  "price": 250.00,
+  "cost": 100.00,
+  "purchaseDate": null,
+  "colorId": null,
+  "brandId": "{{brandId}}",
+  "categoryId": "{{categoryId}}",
+  "skus": [
+    {
+      "barcode": "{{$uuid}}",
+      "sizeId": "{{sizeId}}",
+      "implantationQty": 30
+    }
+  ]
+}
+
+> {%
+  client.global.set("productId", response.body.id);
+  client.global.set("skuId", response.body.skus[0].id);
+%}
+
+###
+
+### Step 4 — POST /sales — netAmount=500 which is within tier [100, 1000]
+# grossAmount = 2 × 250 = 500; installment = 500
+POST {{host}}/sales
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "customerId": "{{customerId}}",
+  "origin": "DIRECT",
+  "consignmentId": null,
+  "issueDate": "2026-06-04",
+  "storeCreditNoteId": null,
+  "storeCreditDiscount": null,
+  "notes": "Commission flow test {{run}}",
+  "items": [
+    {
+      "skuId": "{{skuId}}",
+      "productId": "{{productId}}",
+      "quantity": 2,
+      "unitPrice": 250.00
+    }
+  ],
+  "installments": [
+    {
+      "paymentModality": "PIX",
+      "dueDate": "2026-06-04",
+      "amount": 500.00
+    }
+  ],
+  "sellers": [
+    {
+      "salespersonId": "{{salespersonId}}",
+      "sharePercent": 100
+    }
+  ]
+}
+
+> {%
+  client.global.set("saleId", response.body.id);
+%}
+
+###
+
+### Step 5 — GET /commissions?salespersonId={{salespersonId}} — verify commission exists with bonusAmount > 0
+GET {{host}}/commissions?salespersonId={{salespersonId}}&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### Step 6 — GET /commission-bonus-tiers — verify tier appears and is active
+GET {{host}}/commission-bonus-tiers
+Authorization: Bearer {{token}}
+
+###
+
+### Step 7 — DELETE /commission-bonus-tiers/{tierId} — deactivate tier
+DELETE {{host}}/commission-bonus-tiers/{{tierId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 8 — GET /commission-bonus-tiers — verify tier is no longer active
+GET {{host}}/commission-bonus-tiers
+Authorization: Bearer {{token}}
+
+###
+
+### Step 9 — Error: POST /commission-bonus-tiers with overlapping range → 409 or 422
+# Range [200, 800] overlaps with the now-deactivated tier [100, 1000].
+# If the overlap check only applies to ACTIVE tiers, this might succeed.
+# Adjust the range below if you created additional active tiers earlier.
+POST {{host}}/commission-bonus-tiers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "minAmount": 500.00,
+  "maxAmount": 1500.00,
+  "bonusPercent": 3.00
+}
+
+###
+
+### Step 9b — Create a second overlapping tier to trigger the conflict
+# First create a fresh active tier
+POST {{host}}/commission-bonus-tiers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "minAmount": 2000.00,
+  "maxAmount": 5000.00,
+  "bonusPercent": 1.50
+}
+
+> {%
+  client.global.set("tier2Id", response.body.id);
+%}
+
+###
+
+### Step 9c — Attempt to create overlapping tier [3000, 7000] — should fail with 409 or 422
+POST {{host}}/commission-bonus-tiers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "minAmount": 3000.00,
+  "maxAmount": 7000.00,
+  "bonusPercent": 2.00
+}
+
+###
