@@ -6,5 +6,6 @@ public enum StockSource {
     RECOUNT_ADJUSTMENT,
     SALE,
     CONSIGNMENT,
-    PURCHASE
+    PURCHASE,
+    RETURN
 }

@@ -1,0 +1,416 @@
+### Step 1 — Login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "login": "admin",
+  "password": "admin"
+}
+
+> {%
+  client.global.set("token", response.body.token);
+  client.global.set("run", String(Date.now()));
+%}
+
+###
+
+### Step 2 — Create customer (individual)
+# CPF is a fixed valid Brazilian CPF — re-run requires a clean DB or a different CPF
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "INDIVIDUAL",
+  "cpf": "52998224725",
+  "legalName": "Maria Consignment {{run}}",
+  "name": "Maria {{run}}",
+  "customer": true,
+  "supplier": false,
+  "salesperson": false
+}
+
+> {%
+  client.global.set("customerId", response.body.id);
+%}
+
+###
+
+### Step 3 — Create salesperson
+# CPF is a fixed valid Brazilian CPF — re-run requires a clean DB or a different CPF
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "INDIVIDUAL",
+  "cpf": "71428793860",
+  "legalName": "Vendedor Consignment {{run}}",
+  "name": "Vendedor {{run}}",
+  "customer": false,
+  "supplier": false,
+  "salesperson": true,
+  "commissionPercent": 5.00
+}
+
+> {%
+  client.global.set("salespersonId", response.body.id);
+%}
+
+###
+
+### Step 4 — Create brand
+POST {{host}}/catalog/brands
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Consignment Brand {{run}}"
+}
+
+> {%
+  client.global.set("brandId", response.body.id);
+%}
+
+###
+
+### Step 5 — Create category
+POST {{host}}/catalog/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Consignment Category {{run}}",
+  "parentId": null
+}
+
+> {%
+  client.global.set("categoryId", response.body.id);
+%}
+
+###
+
+### Step 6 — Create size
+POST {{host}}/catalog/sizes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "M"
+}
+
+> {%
+  client.global.set("sizeId", response.body.id);
+%}
+
+###
+
+### Step 7 — Create product with 2 SKUs (implantationQty=30 and implantationQty=20)
+# Barcodes use $uuid to avoid unique-constraint conflicts on re-runs
+# ProductSkuCreated → seeds stock_balance for each SKU
+POST {{host}}/catalog/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Consignment Shirt {{run}}",
+  "price": 150.00,
+  "cost": 70.00,
+  "purchaseDate": null,
+  "colorId": null,
+  "brandId": "{{brandId}}",
+  "categoryId": "{{categoryId}}",
+  "skus": [
+    {
+      "barcode": "{{$uuid}}",
+      "sizeId": "{{sizeId}}",
+      "implantationQty": 30
+    },
+    {
+      "barcode": "{{$uuid}}",
+      "sizeId": "{{sizeId}}",
+      "implantationQty": 20
+    }
+  ]
+}
+
+> {%
+  client.global.set("productId", response.body.id);
+  client.global.set("skuId1", response.body.skus[0].id);
+  client.global.set("skuId2", response.body.skus[1].id);
+%}
+
+###
+
+### Step 8 — Verify initial stock balance for SKU 1 (currentBalance=30)
+# Served from Elasticsearch
+GET {{host}}/inventory/balance/{{skuId1}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 9 — Verify initial stock balance for SKU 2 (currentBalance=20)
+GET {{host}}/inventory/balance/{{skuId2}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 10 — Issue consignment: 5 units of SKU 1 + 3 units of SKU 2
+# ConsignmentIssued → ConsignmentIssuedListener → RecordConsignmentIssueStockUseCase
+#   SKU 1: balance 30 → 25 (CONSIGNMENT_ISSUE, qty=-5)
+#   SKU 2: balance 20 → 17 (CONSIGNMENT_ISSUE, qty=-3)
+POST {{host}}/consignments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "customerId": "{{customerId}}",
+  "salespersonIds": ["{{salespersonId}}"],
+  "issueDate": "2026-05-12",
+  "notes": "Consignment flow test {{run}}",
+  "items": [
+    {
+      "skuId": "{{skuId1}}",
+      "productId": "{{productId}}",
+      "quantity": 5,
+      "unitPrice": 150.00
+    },
+    {
+      "skuId": "{{skuId2}}",
+      "productId": "{{productId}}",
+      "quantity": 3,
+      "unitPrice": 150.00
+    }
+  ]
+}
+
+> {%
+  client.global.set("consignmentId", response.body.id);
+  client.global.set("itemId1", response.body.items[0].id);
+  client.global.set("itemId2", response.body.items[1].id);
+%}
+
+###
+
+### Step 11 — Verify stock decreased after issue: SKU 1 (currentBalance=25)
+GET {{host}}/inventory/balance/{{skuId1}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 12 — Verify stock decreased after issue: SKU 2 (currentBalance=17)
+GET {{host}}/inventory/balance/{{skuId2}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 13 — Get consignment from Elasticsearch index (status=OPEN)
+# Served from Elasticsearch — reflects ConsignmentIssued event
+GET {{host}}/consignments/{{consignmentId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 14 — Check movement history for SKU 1 (2 entries: CONSIGNMENT_ISSUE qty=-5, INITIAL_STOCK qty=30)
+GET {{host}}/inventory/movements/{{skuId1}}?page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### Step 15 — Partial return: return 2 units of SKU 1
+# ConsignmentItemsReturned → ConsignmentItemsReturnedListener → RecordConsignmentReturnStockUseCase
+#   SKU 1: balance 25 → 27 (CONSIGNMENT_RETURN, qty=+2)
+POST {{host}}/consignments/{{consignmentId}}/return-items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "skuId": "{{skuId1}}",
+      "quantityReturned": 2
+    }
+  ]
+}
+
+###
+
+### Step 16 — Verify stock increased after return: SKU 1 (currentBalance=27)
+# quantityIssued=5, quantityReturned=2 → 3 still out on consignment
+GET {{host}}/inventory/balance/{{skuId1}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 17 — Verify SKU 2 balance unchanged after partial return (currentBalance=17)
+GET {{host}}/inventory/balance/{{skuId2}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 18 — Get updated consignment from Elasticsearch (quantityReturned for SKU 1 = 2)
+GET {{host}}/consignments/{{consignmentId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 19 — Check movement history for SKU 1 (3 entries: CONSIGNMENT_RETURN, CONSIGNMENT_ISSUE, INITIAL_STOCK)
+GET {{host}}/inventory/movements/{{skuId1}}?page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### Step 20 — Close consignment: sold items generate a sale
+# quantitySold = quantityIssued - quantityReturned
+#   SKU 1: sold 3 (5 issued - 2 returned); SKU 2: sold 3 (3 issued - 0 returned)
+# Total = 3×150 + 3×150 = 900.00
+POST {{host}}/consignments/{{consignmentId}}/close
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "sellerIds": [{{salespersonId}}],
+  "installments": [
+    {
+      "paymentModality": "PIX",
+      "dueDate": "2026-05-12",
+      "amount": 900.00
+    }
+  ]
+}
+
+> {%
+  client.global.set("saleId", response.body.id);
+%}
+
+###
+
+### Step 20a — GET /sales/{saleId} — verify the sale created from consignment close
+# origin should be CONSIGNMENT, consignmentId should match
+GET {{host}}/sales/{{saleId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 21 — Verify consignment status is CLOSED in Elasticsearch
+GET {{host}}/consignments/{{consignmentId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 22 — Search consignments by customerId (should include the closed consignment)
+GET {{host}}/consignments?customerId={{customerId}}&page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### Step 23 — Search consignments filtered by status=CLOSED
+GET {{host}}/consignments?status=CLOSED&page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### Step 24 — Search consignments filtered by status=OPEN (should not include this consignment)
+GET {{host}}/consignments?status=OPEN&page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### Step 25 — Search consignments filtered by salespersonId
+GET {{host}}/consignments?salespersonId={{salespersonId}}&page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### Step 26 — Search consignments by date range
+GET {{host}}/consignments?from=2026-05-12&to=2026-05-12&page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### Step 27 — Verify final stock balances reflect all operations
+# SKU 1: 30 (initial) - 5 (issued) + 2 (returned) = 27
+GET {{host}}/inventory/balance/{{skuId1}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 28 — Verify final stock balance for SKU 2
+# SKU 2: 20 (initial) - 3 (issued) = 17 (no returns)
+GET {{host}}/inventory/balance/{{skuId2}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 29 — Final movement history for SKU 1 (3 entries: CONSIGNMENT_RETURN qty=+2, CONSIGNMENT_ISSUE qty=-5, INITIAL_STOCK qty=30)
+GET {{host}}/inventory/movements/{{skuId1}}?page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### Step 30 — Final movement history for SKU 2 (2 entries: CONSIGNMENT_ISSUE qty=-3, INITIAL_STOCK qty=20)
+GET {{host}}/inventory/movements/{{skuId2}}?page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### --- Error cases ---
+
+### Step 31 — Try to close already-closed consignment → 422 Unprocessable Entity
+POST {{host}}/consignments/{{consignmentId}}/close
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "sellerIds": [{{salespersonId}}],
+  "installments": [
+    {
+      "paymentMethod": "PIX",
+      "amount": 100.00
+    }
+  ]
+}
+
+###
+
+### Step 32 — Try to return items from closed consignment → 422 Unprocessable Entity
+POST {{host}}/consignments/{{consignmentId}}/return-items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "skuId": "{{skuId1}}",
+      "quantityReturned": 1
+    }
+  ]
+}
+
+###
+
+### Step 33 — Issue consignment with unknown customer → 404 Not Found
+POST {{host}}/consignments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "customerId": "999999999",
+  "salespersonIds": ["{{salespersonId}}"],
+  "issueDate": "2026-05-12",
+  "notes": "Should fail",
+  "items": [
+    {
+      "skuId": "{{skuId1}}",
+      "productId": "{{productId}}",
+      "quantity": 1,
+      "unitPrice": 150.00
+    }
+  ]
+}
+
+###
+
+### Step 34 — Get non-existent consignment → 404 Not Found
+GET {{host}}/consignments/999999999
+Authorization: Bearer {{token}}

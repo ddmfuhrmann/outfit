@@ -1,0 +1,256 @@
+### Step 1 — Login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "login": "admin",
+  "password": "admin"
+}
+
+> {%
+  client.global.set("token", response.body.token);
+  client.global.set("run", String(Date.now()));
+%}
+
+###
+
+### Step 2 — Create customer
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "INDIVIDUAL",
+  "cpf": "98765432100",
+  "legalName": "Cliente Venda {{run}}",
+  "name": "Cliente {{run}}",
+  "customer": true,
+  "supplier": false,
+  "salesperson": false
+}
+
+> {%
+  client.global.set("customerId", response.body.id);
+%}
+
+###
+
+### Step 3 — Create salesperson
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "INDIVIDUAL",
+  "cpf": "12345678909",
+  "legalName": "Vendedor Sale {{run}}",
+  "name": "Vendedor {{run}}",
+  "customer": false,
+  "supplier": false,
+  "salesperson": true,
+  "commissionPercent": 5.00
+}
+
+> {%
+  client.global.set("salespersonId", response.body.id);
+%}
+
+###
+
+### Step 4 — Create brand
+POST {{host}}/catalog/brands
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Sale Brand {{run}}"
+}
+
+> {%
+  client.global.set("brandId", response.body.id);
+%}
+
+###
+
+### Step 5 — Create category
+POST {{host}}/catalog/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Sale Category {{run}}",
+  "parentId": null
+}
+
+> {%
+  client.global.set("categoryId", response.body.id);
+%}
+
+###
+
+### Step 6 — Create size
+POST {{host}}/catalog/sizes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "G"
+}
+
+> {%
+  client.global.set("sizeId", response.body.id);
+%}
+
+###
+
+### Step 7 — Create product with 1 SKU (implantationQty=50)
+POST {{host}}/catalog/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Sale Shirt {{run}}",
+  "price": 100.00,
+  "cost": 50.00,
+  "purchaseDate": null,
+  "colorId": null,
+  "brandId": "{{brandId}}",
+  "categoryId": "{{categoryId}}",
+  "skus": [
+    {
+      "barcode": "{{$uuid}}",
+      "sizeId": "{{sizeId}}",
+      "implantationQty": 50
+    }
+  ]
+}
+
+> {%
+  client.global.set("productId", response.body.id);
+  client.global.set("skuId1", response.body.skus[0].id);
+%}
+
+###
+
+### Step 8 — Verify initial stock balance for SKU 1 (currentBalance=50)
+# Served from Elasticsearch
+GET {{host}}/inventory/balance/{{skuId1}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 9 — POST /sales — DIRECT sale, 1 seller (100% share), 3 units, 1 installment PIX
+# grossAmount = 3 × 100 = 300; netAmount = 300; installment = 300
+POST {{host}}/sales
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "customerId": "{{customerId}}",
+  "origin": "DIRECT",
+  "consignmentId": null,
+  "issueDate": "2026-06-04",
+  "storeCreditNoteId": null,
+  "storeCreditDiscount": null,
+  "notes": "Sale flow test {{run}}",
+  "items": [
+    {
+      "skuId": "{{skuId1}}",
+      "productId": "{{productId}}",
+      "quantity": 3,
+      "unitPrice": 100.00
+    }
+  ],
+  "installments": [
+    {
+      "paymentModality": "PIX",
+      "dueDate": "2026-06-04",
+      "amount": 300.00
+    }
+  ],
+  "sellers": [
+    {
+      "salespersonId": "{{salespersonId}}",
+      "sharePercent": 100
+    }
+  ]
+}
+
+> {%
+  client.global.set("saleId", response.body.id);
+%}
+
+###
+
+### Step 10 — GET /sales/{saleId} — verify enriched ES document
+# Served from Elasticsearch — customer.name, sellers[].name, items[].productDescription should be populated
+GET {{host}}/sales/{{saleId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 11 — GET /sales?customerId={{customerId}} — verify sale appears in results
+GET {{host}}/sales?customerId={{customerId}}&page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### Step 12 — GET /sales?q=<prefix of customer name> — verify search-as-you-type
+GET {{host}}/sales?q=Cliente&page=0&size=10
+Authorization: Bearer {{token}}
+
+###
+
+### Step 13 — GET /inventory/balance/{skuId1} — verify stock decreased by 3 (currentBalance=47)
+# SaleConfirmed → RecordSaleStockDecrementUseCase → balance 50 → 47
+GET {{host}}/inventory/balance/{{skuId1}}
+Authorization: Bearer {{token}}
+
+###
+
+### --- Error cases ---
+
+### Step 14 — POST /sales with installment mismatch → 422 Unprocessable Entity
+# grossAmount = 1 × 100 = 100, netAmount = 100, but installment = 50 → mismatch
+POST {{host}}/sales
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "customerId": "{{customerId}}",
+  "origin": "DIRECT",
+  "consignmentId": null,
+  "issueDate": "2026-06-04",
+  "storeCreditNoteId": null,
+  "storeCreditDiscount": null,
+  "notes": "Should fail — installment mismatch",
+  "items": [
+    {
+      "skuId": "{{skuId1}}",
+      "productId": "{{productId}}",
+      "quantity": 1,
+      "unitPrice": 100.00
+    }
+  ],
+  "installments": [
+    {
+      "paymentModality": "PIX",
+      "dueDate": "2026-06-04",
+      "amount": 50.00
+    }
+  ],
+  "sellers": [
+    {
+      "salespersonId": "{{salespersonId}}",
+      "sharePercent": 100
+    }
+  ]
+}
+
+###
+
+### Step 15 — GET /sales/999999999 — non-existent sale → 404 Not Found
+GET {{host}}/sales/999999999
+Authorization: Bearer {{token}}
+
+###

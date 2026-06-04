@@ -32,6 +32,7 @@ public class ElasticsearchIndexInitializer {
     public static final String STOCK_SNAPSHOT_INDEX = "stock_snapshot";
     public static final String STOCK_MONTHLY_INDEX  = "stock_monthly";
     public static final String INDEX_CONSIGNMENTS   = "consignments";
+    public static final String INDEX_SALES          = "sales";
 
     // --- shared field names ---
     public static final String FIELD_SKU_ID      = "skuId";
@@ -85,6 +86,8 @@ public class ElasticsearchIndexInitializer {
                     .properties(FIELD_CURRENT_BALANCE, p -> p.integer(i -> i))
                     .properties(FIELD_UPDATED_AT,      p -> p.date(d -> d)));
             createIndex(INDEX_CONSIGNMENTS, m -> m.dynamic(DynamicMapping.True)
+                    .properties("customerName", p -> p.searchAsYouType(s -> s)));
+            createIndex(INDEX_SALES, m -> m.dynamic(DynamicMapping.True)
                     .properties("customerName", p -> p.searchAsYouType(s -> s)));
             createIndex(STOCK_MONTHLY_INDEX, m -> m.dynamic(DynamicMapping.True)
                     .properties(FIELD_SKU_ID,          p -> p.keyword(k -> k))

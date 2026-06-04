@@ -1,6 +1,13 @@
 package github.io.ddmfuhrmann.outfit.sales.application.dto;
 
-import java.math.BigDecimal;
+import github.io.ddmfuhrmann.outfit.sales.domain.model.PaymentModality;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
-// Stub — fields will be finalised in phase 4b-2 when CreateSaleUseCase is implemented
-public record CreateSaleInstallmentRequest(String paymentMethod, BigDecimal amount) {}
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+public record CreateSaleInstallmentRequest(
+        @NotNull PaymentModality paymentModality,
+        @NotNull LocalDate dueDate,
+        @NotNull @Positive BigDecimal amount) {}

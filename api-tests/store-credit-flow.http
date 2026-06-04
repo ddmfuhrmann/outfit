@@ -1,0 +1,257 @@
+### Step 1 — Login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "login": "admin",
+  "password": "admin"
+}
+
+> {%
+  client.global.set("token", response.body.token);
+  client.global.set("run", String(Date.now()));
+%}
+
+###
+
+### Step 2 — Create customer
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "INDIVIDUAL",
+  "cpf": "55555555555",
+  "legalName": "Cliente Credit {{run}}",
+  "name": "Cliente Credit {{run}}",
+  "customer": true,
+  "supplier": false,
+  "salesperson": false
+}
+
+> {%
+  client.global.set("customerId", response.body.id);
+%}
+
+###
+
+### Step 3 — Create brand, category, size, product with 1 SKU (implantationQty=10)
+# Brand
+POST {{host}}/catalog/brands
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Credit Brand {{run}}"
+}
+
+> {%
+  client.global.set("brandId", response.body.id);
+%}
+
+###
+
+POST {{host}}/catalog/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Credit Category {{run}}",
+  "parentId": null
+}
+
+> {%
+  client.global.set("categoryId", response.body.id);
+%}
+
+###
+
+POST {{host}}/catalog/sizes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "P"
+}
+
+> {%
+  client.global.set("sizeId", response.body.id);
+%}
+
+###
+
+POST {{host}}/catalog/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Credit Product {{run}}",
+  "price": 80.00,
+  "cost": 40.00,
+  "purchaseDate": null,
+  "colorId": null,
+  "brandId": "{{brandId}}",
+  "categoryId": "{{categoryId}}",
+  "skus": [
+    {
+      "barcode": "{{$uuid}}",
+      "sizeId": "{{sizeId}}",
+      "implantationQty": 10
+    }
+  ]
+}
+
+> {%
+  client.global.set("productId", response.body.id);
+  client.global.set("skuId", response.body.skus[0].id);
+%}
+
+###
+
+### Step 4 — POST /store-credit-notes — return 2 units at 80 each (totalAmount=160)
+# StoreCreditNoteCreated → RecordCreditReturnStockUseCase → RETURN +2
+POST {{host}}/store-credit-notes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "customerId": "{{customerId}}",
+  "notes": "Customer returned 2 items",
+  "items": [
+    {
+      "skuId": "{{skuId}}",
+      "productId": "{{productId}}",
+      "quantity": 2,
+      "unitPrice": 80.00
+    }
+  ]
+}
+
+> {%
+  client.global.set("storeCreditNoteId", response.body.id);
+%}
+
+###
+
+### Step 5 — GET /inventory/balance/{skuId} — verify +2 return movement (balance=12)
+# Served from Elasticsearch
+GET {{host}}/inventory/balance/{{skuId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 6 — GET /store-credit-notes/{storeCreditNoteId} — verify status=OPEN
+GET {{host}}/store-credit-notes/{{storeCreditNoteId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 7 — Create salesperson
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "INDIVIDUAL",
+  "cpf": "44444444404",
+  "legalName": "Vendedor Credit {{run}}",
+  "name": "Vendedor Credit {{run}}",
+  "customer": false,
+  "supplier": false,
+  "salesperson": true,
+  "commissionPercent": 5.00
+}
+
+> {%
+  client.global.set("salespersonId", response.body.id);
+%}
+
+###
+
+### Step 8 — POST /sales with storeCreditNoteId
+# grossAmount = 3 × 80 = 240; discount = min(160, 240) = 160; netAmount = 80
+# installment must match netAmount = 80
+POST {{host}}/sales
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "customerId": "{{customerId}}",
+  "origin": "DIRECT",
+  "consignmentId": null,
+  "issueDate": "2026-06-04",
+  "storeCreditNoteId": "{{storeCreditNoteId}}",
+  "storeCreditDiscount": null,
+  "notes": "Sale using store credit {{run}}",
+  "items": [
+    {
+      "skuId": "{{skuId}}",
+      "productId": "{{productId}}",
+      "quantity": 3,
+      "unitPrice": 80.00
+    }
+  ],
+  "installments": [
+    {
+      "paymentModality": "PIX",
+      "dueDate": "2026-06-04",
+      "amount": 80.00
+    }
+  ],
+  "sellers": [
+    {
+      "salespersonId": "{{salespersonId}}",
+      "sharePercent": 100
+    }
+  ]
+}
+
+> {%
+  client.global.set("saleId", response.body.id);
+%}
+
+###
+
+### Step 9 — GET /store-credit-notes/{storeCreditNoteId} — verify status=CONSUMED
+GET {{host}}/store-credit-notes/{{storeCreditNoteId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 10 — Error: POST /sales with same storeCreditNoteId again → 422 Unprocessable Entity
+POST {{host}}/sales
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "customerId": "{{customerId}}",
+  "origin": "DIRECT",
+  "consignmentId": null,
+  "issueDate": "2026-06-04",
+  "storeCreditNoteId": "{{storeCreditNoteId}}",
+  "storeCreditDiscount": null,
+  "notes": "Should fail — note already consumed",
+  "items": [
+    {
+      "skuId": "{{skuId}}",
+      "productId": "{{productId}}",
+      "quantity": 1,
+      "unitPrice": 80.00
+    }
+  ],
+  "installments": [
+    {
+      "paymentModality": "PIX",
+      "dueDate": "2026-06-04",
+      "amount": 80.00
+    }
+  ],
+  "sellers": [
+    {
+      "salespersonId": "{{salespersonId}}",
+      "sharePercent": 100
+    }
+  ]
+}
+
+###

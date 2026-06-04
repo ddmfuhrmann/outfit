@@ -6,6 +6,7 @@ import github.io.ddmfuhrmann.outfit.party.application.dto.PartyCreatedResponse;
 import github.io.ddmfuhrmann.outfit.party.domain.model.PersonType;
 import github.io.ddmfuhrmann.outfit.query.application.dto.ConsignmentDocument;
 import github.io.ddmfuhrmann.outfit.sales.application.dto.*;
+import github.io.ddmfuhrmann.outfit.sales.domain.model.PaymentModality;
 import github.io.ddmfuhrmann.outfit.shared.AbstractIT;
 import github.io.ddmfuhrmann.outfit.shared.application.dto.PageResponse;
 import org.junit.jupiter.api.Test;
@@ -92,7 +93,7 @@ class ConsignmentQueryControllerIT extends AbstractIT {
     private void closeConsignment(HttpHeaders headers, long consignmentId, Long salespersonId) {
         var req = new CloseConsignmentRequest(
                 List.of(salespersonId),
-                List.of(new CreateSaleInstallmentRequest("CASH", BigDecimal.valueOf(750.00))));
+                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, LocalDate.now(), BigDecimal.valueOf(750.00))));
         rest.exchange("/consignments/" + consignmentId + "/close", HttpMethod.POST,
                 new HttpEntity<>(req, headers), Void.class);
     }

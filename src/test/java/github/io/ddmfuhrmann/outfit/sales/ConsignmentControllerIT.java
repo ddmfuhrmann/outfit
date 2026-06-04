@@ -7,9 +7,9 @@ import github.io.ddmfuhrmann.outfit.party.application.dto.CreatePartyRequest;
 import github.io.ddmfuhrmann.outfit.party.application.dto.PartyCreatedResponse;
 import github.io.ddmfuhrmann.outfit.party.domain.model.PersonType;
 import github.io.ddmfuhrmann.outfit.sales.application.dto.*;
+import github.io.ddmfuhrmann.outfit.sales.domain.model.PaymentModality;
 import github.io.ddmfuhrmann.outfit.shared.AbstractIT;
 import github.io.ddmfuhrmann.outfit.shared.application.dto.PageResponse;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -220,7 +220,7 @@ class ConsignmentControllerIT extends AbstractIT {
 
         var closeReq = new CloseConsignmentRequest(
                 List.of(s.salespersonId()),
-                List.of(new CreateSaleInstallmentRequest("CASH", BigDecimal.valueOf(750.00)))
+                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, LocalDate.now(), BigDecimal.valueOf(1350.00)))
         );
         rest.exchange("/consignments/" + consignmentId + "/close", HttpMethod.POST,
                 new HttpEntity<>(closeReq, headers), Void.class);
@@ -233,7 +233,6 @@ class ConsignmentControllerIT extends AbstractIT {
     }
 
     @Test
-    @Disabled("Complete in phase 4b-2 once CreateSaleUseCase is available")
     void closeConsignmentReturns201WithSale() {
         var headers = authHeaders(rest);
         var s = setup(headers);
@@ -241,7 +240,7 @@ class ConsignmentControllerIT extends AbstractIT {
 
         var closeReq = new CloseConsignmentRequest(
                 List.of(s.salespersonId()),
-                List.of(new CreateSaleInstallmentRequest("CASH", BigDecimal.valueOf(750.00)))
+                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, LocalDate.now(), BigDecimal.valueOf(1350.00)))
         );
         var resp = rest.exchange("/consignments/" + consignmentId + "/close", HttpMethod.POST,
                 new HttpEntity<>(closeReq, headers), SaleResponse.class);
@@ -259,7 +258,7 @@ class ConsignmentControllerIT extends AbstractIT {
 
         var closeReq = new CloseConsignmentRequest(
                 List.of(s.salespersonId()),
-                List.of(new CreateSaleInstallmentRequest("CASH", BigDecimal.valueOf(750.00)))
+                List.of(new CreateSaleInstallmentRequest(PaymentModality.CASH, LocalDate.now(), BigDecimal.valueOf(1350.00)))
         );
         var first = rest.exchange("/consignments/" + consignmentId + "/close", HttpMethod.POST,
                 new HttpEntity<>(closeReq, headers), Void.class);
