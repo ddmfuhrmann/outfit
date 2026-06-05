@@ -1,0 +1,13 @@
+# .bsdd-plugins.yml
+# Declares external tool plugins for each behavioral-sdd sub-agent.
+# enabled: auto  → plugin runs if its auto-detection condition is met
+# enabled: true  → always run
+# enabled: false → never run
+plugins:
+  reviewer:
+    sonar:
+      enabled: auto        # auto = sonar-project.properties present
+    xlint-removal:
+      enabled: auto        # auto = build.gradle.kts / build.gradle / pom.xml present
+    trivy:
+      enabled: auto        # auto = Docker available

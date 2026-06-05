@@ -44,7 +44,16 @@ Every plan **must** include an `## API tests` section listing which `api-tests/*
 | `.skills/benchmark-execution.md` | Load testing methodology |
 | `.skills/database-seeding.md` | Realistic data for perf tests |
 | `.skills/optimization-reporting.md` | Optimization report format |
-| `.skills/sonar-analysis.md` | SonarQube static analysis (opt-in: `sonar-project.properties` is present — analysis runs automatically as part of `/code-review`) |
+
+### Plugins
+
+External tool plugins are declared in `.bsdd-plugins.yml` at the project root. Each plugin lives in `.skills/plugins/<name>.md`.
+
+| Plugin | Sub-agent | Purpose | Auto-detection |
+|---|---|---|---|
+| `sonar` | reviewer | SonarQube static analysis | `sonar-project.properties` present |
+| `xlint-removal` | reviewer | `@Deprecated(forRemoval=true)` warnings — Java only | `build.gradle.kts` present |
+| `trivy` | reviewer | CVE scan on dependencies | Docker available |
 
 ---
 
