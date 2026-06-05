@@ -70,4 +70,48 @@ class ReferenceDataDomainEventTest {
         assertThat(((CategoryRenamed) category.getRegisteredEvents().iterator().next()).newDescription()).isEqualTo("Camisetas Polo");
     }
 
+    @Test
+    void addSupplierToEmptyBrandSucceeds() {
+        var brand = Brand.create("TestBrand");
+        brand.addSupplier(123L);
+        assertThat(brand.getSupplierIds()).containsExactly(123L);
+    }
+
+    @Test
+    void addDuplicateSupplierThrowsIllegalState() {
+        var brand = Brand.create("TestBrand");
+        brand.addSupplier(123L);
+        assertThatThrownBy(() -> brand.addSupplier(123L))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void addNullSupplierThrowsIllegalArgument() {
+        var brand = Brand.create("TestBrand");
+        assertThatThrownBy(() -> brand.addSupplier(null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void removeSupplierSucceeds() {
+        var brand = Brand.create("TestBrand");
+        brand.addSupplier(123L);
+        brand.removeSupplier(123L);
+        assertThat(brand.getSupplierIds()).isEmpty();
+    }
+
+    @Test
+    void removeAbsentSupplierThrowsIllegalState() {
+        var brand = Brand.create("TestBrand");
+        assertThatThrownBy(() -> brand.removeSupplier(999L))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void removeNullSupplierThrowsIllegalArgument() {
+        var brand = Brand.create("TestBrand");
+        assertThatThrownBy(() -> brand.removeSupplier(null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
 }

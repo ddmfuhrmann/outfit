@@ -7,6 +7,9 @@ import github.io.ddmfuhrmann.outfit.shared.domain.model.BaseAggregate;
 import jakarta.persistence.*;
 import lombok.Getter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Getter
 @Entity
 @Table(name = "brand")
@@ -14,6 +17,11 @@ public class Brand extends BaseAggregate<Brand> {
 
     @Column(nullable = false, length = 100)
     private String description;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "brand_supplier", joinColumns = @JoinColumn(name = "brand_id"))
+    @Column(name = "supplier_id")
+    private List<Long> supplierIds = new ArrayList<>();
 
     protected Brand() {}
 
@@ -33,5 +41,17 @@ public class Brand extends BaseAggregate<Brand> {
 
     public void delete() {
         registerEvent(new BrandDeleted(getId()));
+    }
+
+    public void addSupplier(Long supplierId) {
+        if (supplierId == null) throw new IllegalArgumentException("supplierId is required");
+        if (supplierIds.contains(supplierId)) throw new IllegalStateException("supplier already associated with brand");
+        supplierIds.add(supplierId);
+    }
+
+    public void removeSupplier(Long supplierId) {
+        if (supplierId == null) throw new IllegalArgumentException("supplierId is required");
+        boolean removed = supplierIds.remove(supplierId);
+        if (!removed) throw new IllegalStateException("supplier not associated with brand: " + supplierId);
     }
 }

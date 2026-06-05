@@ -2,8 +2,10 @@ package github.io.ddmfuhrmann.outfit.catalog.api.rest;
 
 import github.io.ddmfuhrmann.outfit.catalog.application.dto.BrandRequest;
 import github.io.ddmfuhrmann.outfit.catalog.application.dto.BrandResponse;
+import github.io.ddmfuhrmann.outfit.catalog.application.usecase.AddSupplierToBrandUseCase;
 import github.io.ddmfuhrmann.outfit.catalog.application.usecase.CreateBrandUseCase;
 import github.io.ddmfuhrmann.outfit.catalog.application.usecase.DeleteBrandUseCase;
+import github.io.ddmfuhrmann.outfit.catalog.application.usecase.RemoveSupplierFromBrandUseCase;
 import github.io.ddmfuhrmann.outfit.catalog.application.usecase.RenameBrandUseCase;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -18,12 +20,19 @@ public class BrandController {
     private final CreateBrandUseCase createBrand;
     private final RenameBrandUseCase renameBrand;
     private final DeleteBrandUseCase deleteBrand;
+    private final AddSupplierToBrandUseCase addSupplierToBrand;
+    private final RemoveSupplierFromBrandUseCase removeSupplierFromBrand;
 
-    public BrandController(CreateBrandUseCase createBrand, RenameBrandUseCase renameBrand,
-                           DeleteBrandUseCase deleteBrand) {
+    public BrandController(CreateBrandUseCase createBrand,
+                           RenameBrandUseCase renameBrand,
+                           DeleteBrandUseCase deleteBrand,
+                           AddSupplierToBrandUseCase addSupplierToBrand,
+                           RemoveSupplierFromBrandUseCase removeSupplierFromBrand) {
         this.createBrand = createBrand;
         this.renameBrand = renameBrand;
         this.deleteBrand = deleteBrand;
+        this.addSupplierToBrand = addSupplierToBrand;
+        this.removeSupplierFromBrand = removeSupplierFromBrand;
     }
 
     @PostMapping
@@ -41,5 +50,15 @@ public class BrandController {
     ResponseEntity<Void> delete(@PathVariable Long id) {
         deleteBrand.execute(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/suppliers/{supplierId}")
+    ResponseEntity<BrandResponse> addSupplier(@PathVariable Long id, @PathVariable Long supplierId) {
+        return ResponseEntity.ok(addSupplierToBrand.execute(id, supplierId));
+    }
+
+    @DeleteMapping("/{id}/suppliers/{supplierId}")
+    ResponseEntity<BrandResponse> removeSupplier(@PathVariable Long id, @PathVariable Long supplierId) {
+        return ResponseEntity.ok(removeSupplierFromBrand.execute(id, supplierId));
     }
 }

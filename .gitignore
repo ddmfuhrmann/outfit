@@ -43,3 +43,6 @@ out/
 ### behavioral-sdd ###
 .current-plan.md
 .bsdd-sonar-token
+.ship/
+.plans/
+.prds/

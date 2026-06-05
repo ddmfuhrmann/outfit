@@ -17,4 +17,5 @@ public record ProductSnapshot(
         boolean active,
         Instant createdAt,
         Instant updatedAt,
-        List<ProductSkuSnapshot> skus) {}
+        List<ProductSkuSnapshot> skus,
+        List<Long> supplierIds) {}

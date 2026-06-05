@@ -65,7 +65,7 @@ public class Product extends BaseAggregate<Product> {
         public Builder brandId(Long brandId)              { this.brandId = brandId;               return this; }
         public Builder categoryId(Long categoryId)        { this.categoryId = categoryId;         return this; }
 
-        public Product build() {
+        public Product build(List<Long> supplierIds) {
             validate(description, price, cost, brandId, categoryId);
 
             var p = new Product();
@@ -77,18 +77,18 @@ public class Product extends BaseAggregate<Product> {
             p.brandId = brandId;
             p.categoryId = categoryId;
             p.active = true;
-            p.registerEvent(new ProductCreated(p.getId(), p.toSnapshot()));
+            p.registerEvent(new ProductCreated(p.getId(), p.toSnapshot(supplierIds)));
             return p;
         }
     }
 
-    public ProductSku addSku(String barcode, Long sizeId, int implantationQty) {
+    public ProductSku addSku(String barcode, Long sizeId, int implantationQty, List<Long> supplierIds) {
         if (barcode == null || barcode.isBlank()) throw new IllegalArgumentException("barcode is required");
         boolean duplicate = skus.stream().anyMatch(s -> s.getBarcode().equals(barcode.trim()));
         if (duplicate) throw new IllegalArgumentException("barcode already exists in this product");
         var sku = ProductSku.create(getId(), barcode, sizeId);
         skus.add(sku);
-        registerEvent(new ProductSkuCreated(sku.getId(), getId(), sizeId, sku.getBarcode(), implantationQty, toSnapshot()));
+        registerEvent(new ProductSkuCreated(sku.getId(), getId(), sizeId, sku.getBarcode(), implantationQty, toSnapshot(supplierIds)));
         return sku;
     }
 
@@ -133,12 +133,17 @@ public class Product extends BaseAggregate<Product> {
     }
 
     private ProductSnapshot toSnapshot() {
+        return toSnapshot(List.of());
+    }
+
+    private ProductSnapshot toSnapshot(List<Long> supplierIds) {
         return new ProductSnapshot(
                 getId(), description, price, cost, purchaseDate,
                 colorId, brandId, categoryId, active,
                 getCreatedAt(), getUpdatedAt(),
                 skus.stream()
                         .map(s -> new ProductSkuSnapshot(s.getId(), s.getBarcode(), s.getSizeId(), s.isActive()))
-                        .toList());
+                        .toList(),
+                supplierIds != null ? List.copyOf(supplierIds) : List.of());
     }
 }

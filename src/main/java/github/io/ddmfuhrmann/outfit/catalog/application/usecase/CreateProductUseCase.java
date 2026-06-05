@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -50,6 +51,8 @@ public class CreateProductUseCase {
                         .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + request.categoryId()))
                 : null;
 
+        List<Long> supplierIds = brand != null ? brand.getSupplierIds() : List.of();
+
         var product = Product.builder()
                 .description(request.description())
                 .price(request.price())
@@ -58,7 +61,7 @@ public class CreateProductUseCase {
                 .colorId(request.colorId())
                 .brandId(request.brandId())
                 .categoryId(request.categoryId())
-                .build();
+                .build(supplierIds);
 
         var sizeIds = request.skus().stream().map(s -> s.sizeId()).toList();
         Map<Long, Size> sizesById = sizeRepository.findAllById(sizeIds).stream()
@@ -68,7 +71,7 @@ public class CreateProductUseCase {
             if (!sizesById.containsKey(skuReq.sizeId())) {
                 throw new ResourceNotFoundException("Size not found: " + skuReq.sizeId());
             }
-            product.addSku(skuReq.barcode(), skuReq.sizeId(), skuReq.implantationQty());
+            product.addSku(skuReq.barcode(), skuReq.sizeId(), skuReq.implantationQty(), supplierIds);
         }
 
         var saved = productRepository.save(product);
