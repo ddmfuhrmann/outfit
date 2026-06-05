@@ -34,14 +34,13 @@ public class ListStoreCreditNotesUseCase {
     }
 
     private Specification<StoreCreditNote> buildSpec(ListStoreCreditNotesQuery query) {
-        Specification<StoreCreditNote> spec = Specification.where(null);
+        var specs = new java.util.ArrayList<Specification<StoreCreditNote>>();
 
-        if (query.customerId() != null) {
-            spec = spec.and((root, cq, cb) -> cb.equal(root.get("customerId"), query.customerId()));
-        }
-        if (query.status() != null) {
-            spec = spec.and((root, cq, cb) -> cb.equal(root.get("status"), query.status()));
-        }
-        return spec;
+        if (query.customerId() != null)
+            specs.add((root, cq, cb) -> cb.equal(root.get("customerId"), query.customerId()));
+        if (query.status() != null)
+            specs.add((root, cq, cb) -> cb.equal(root.get("status"), query.status()));
+
+        return Specification.allOf(specs);
     }
 }
