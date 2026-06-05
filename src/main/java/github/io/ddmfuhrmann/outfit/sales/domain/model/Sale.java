@@ -54,7 +54,7 @@ public class Sale extends BaseAggregate<Sale> {
     private List<SaleSeller> sellers = new ArrayList<>();
 
     @Version
-    private long version;
+    private Long version;
 
     protected Sale() {}
 

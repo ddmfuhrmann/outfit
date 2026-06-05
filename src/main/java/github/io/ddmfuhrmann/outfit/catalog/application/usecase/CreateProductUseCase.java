@@ -37,15 +37,18 @@ public class CreateProductUseCase {
 
     @Transactional
     public ProductResponse execute(CreateProductRequest request) {
-        if (request.colorId() != null && !colorRepository.existsById(request.colorId())) {
-            throw new ResourceNotFoundException("Color not found: " + request.colorId());
-        }
-        if (request.brandId() != null && !brandRepository.existsById(request.brandId())) {
-            throw new ResourceNotFoundException("Brand not found: " + request.brandId());
-        }
-        if (request.categoryId() != null && !categoryRepository.existsById(request.categoryId())) {
-            throw new ResourceNotFoundException("Category not found: " + request.categoryId());
-        }
+        Color color = request.colorId() != null
+                ? colorRepository.findById(request.colorId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Color not found: " + request.colorId()))
+                : null;
+        Brand brand = request.brandId() != null
+                ? brandRepository.findById(request.brandId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Brand not found: " + request.brandId()))
+                : null;
+        Category category = request.categoryId() != null
+                ? categoryRepository.findById(request.categoryId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + request.categoryId()))
+                : null;
 
         var product = Product.builder()
                 .description(request.description())
@@ -57,8 +60,12 @@ public class CreateProductUseCase {
                 .categoryId(request.categoryId())
                 .build();
 
+        var sizeIds = request.skus().stream().map(s -> s.sizeId()).toList();
+        Map<Long, Size> sizesById = sizeRepository.findAllById(sizeIds).stream()
+                .collect(Collectors.toMap(BaseAggregate::getId, s -> s));
+
         for (var skuReq : request.skus()) {
-            if (!sizeRepository.existsById(skuReq.sizeId())) {
+            if (!sizesById.containsKey(skuReq.sizeId())) {
                 throw new ResourceNotFoundException("Size not found: " + skuReq.sizeId());
             }
             product.addSku(skuReq.barcode(), skuReq.sizeId(), skuReq.implantationQty());
@@ -66,19 +73,17 @@ public class CreateProductUseCase {
 
         var saved = productRepository.save(product);
         log.info("Product created: id={}", saved.getId());
-        return buildResponse(saved);
+        return buildResponse(saved, color, brand, category, sizesById);
     }
 
-    private ProductResponse buildResponse(Product product) {
-        String colorName = product.getColorId() != null
-                ? colorRepository.findById(product.getColorId()).map(Color::getDescription).orElse(null)
-                : null;
-        String brandName = brandRepository.findById(product.getBrandId()).map(Brand::getDescription).orElse(null);
-        String categoryName = categoryRepository.findById(product.getCategoryId()).map(Category::getDescription).orElse(null);
+    private ProductResponse buildResponse(Product product, Color color, Brand brand, Category category,
+                                          Map<Long, Size> sizesById) {
+        String colorName = color != null ? color.getDescription() : null;
+        String brandName = brand != null ? brand.getDescription() : null;
+        String categoryName = category != null ? category.getDescription() : null;
 
-        var sizeIds = product.getSkus().stream().map(ProductSku::getSizeId).toList();
-        Map<Long, String> sizeNames = sizeRepository.findAllById(sizeIds).stream()
-                .collect(Collectors.toMap(BaseAggregate::getId, Size::getDescription));
+        Map<Long, String> sizeNames = sizesById.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getDescription()));
 
         return ProductResponse.from(product, colorName, brandName, categoryName, sizeNames);
     }

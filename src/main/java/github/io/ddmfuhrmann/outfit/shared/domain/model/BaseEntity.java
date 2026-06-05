@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
@@ -12,7 +13,7 @@ import java.time.Instant;
 @Getter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
-public abstract class BaseEntity {
+public abstract class BaseEntity implements Persistable<Long> {
 
     @Id
     private Long id;
@@ -27,5 +28,11 @@ public abstract class BaseEntity {
 
     @LastModifiedDate
     private Instant updatedAt;
+
+    @Override
+    @Transient
+    public boolean isNew() {
+        return createdAt == null;
+    }
 
 }

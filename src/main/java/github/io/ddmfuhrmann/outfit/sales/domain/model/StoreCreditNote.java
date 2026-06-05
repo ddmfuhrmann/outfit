@@ -36,7 +36,7 @@ public class StoreCreditNote extends BaseAggregate<StoreCreditNote> {
     private List<StoreCreditItem> items = new ArrayList<>();
 
     @Version
-    private long version;
+    private Long version;
 
     protected StoreCreditNote() {}
 

@@ -45,7 +45,7 @@ public class Consignment extends BaseAggregate<Consignment> {
     private List<ConsignmentItem> items = new ArrayList<>();
 
     @Version
-    private long version;
+    private Long version;
 
     protected Consignment() {}
 

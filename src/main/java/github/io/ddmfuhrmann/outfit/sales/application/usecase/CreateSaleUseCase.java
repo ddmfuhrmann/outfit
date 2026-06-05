@@ -1,6 +1,7 @@
 package github.io.ddmfuhrmann.outfit.sales.application.usecase;
 
 import github.io.ddmfuhrmann.outfit.party.application.GetSalespersonDetailsService;
+import github.io.ddmfuhrmann.outfit.party.application.SalespersonDetails;
 import github.io.ddmfuhrmann.outfit.sales.application.dto.CreateSaleRequest;
 import github.io.ddmfuhrmann.outfit.sales.application.dto.SaleResponse;
 import github.io.ddmfuhrmann.outfit.sales.domain.model.Sale;
@@ -40,7 +41,8 @@ public class CreateSaleUseCase {
         var grossAmount = computeGrossAmount(request);
         var storeCreditDiscount = resolveStoreCreditDiscount(request, grossAmount);
         var netAmount = grossAmount.subtract(storeCreditDiscount);
-        var sellers = buildSellers(request);
+        var sellerDetails = fetchSellerDetails(request);
+        var sellers = toSellerInputs(sellerDetails, request);
 
         var input = new SaleInput(
                 request.customerId(),
@@ -60,7 +62,7 @@ public class CreateSaleUseCase {
         saleRepository.save(sale);
 
         consumeStoreCreditNote(request, sale);
-        createCommissionsFromSale.execute(sale);
+        createCommissionsFromSale.execute(sale, sellerDetails);
 
         log.info("Sale {} created for customer {} (origin={})", sale.getId(), request.customerId(), request.origin());
         return SaleResponse.from(sale);
@@ -101,12 +103,16 @@ public class CreateSaleUseCase {
         storeCreditNoteRepository.save(note);
     }
 
-    private List<SaleInput.SellerInput> buildSellers(CreateSaleRequest request) {
+    private List<SalespersonDetails> fetchSellerDetails(CreateSaleRequest request) {
         return request.sellers().stream()
-                .map(s -> {
-                    getSalespersonDetails.execute(s.salespersonId());
-                    return new SaleInput.SellerInput(s.salespersonId(), s.sharePercent());
-                })
+                .map(s -> getSalespersonDetails.execute(s.salespersonId()))
+                .toList();
+    }
+
+    private List<SaleInput.SellerInput> toSellerInputs(List<SalespersonDetails> sellerDetails,
+                                                        CreateSaleRequest request) {
+        return request.sellers().stream()
+                .map(s -> new SaleInput.SellerInput(s.salespersonId(), s.sharePercent()))
                 .toList();
     }
 
