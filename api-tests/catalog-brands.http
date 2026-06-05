@@ -45,3 +45,102 @@ Content-Type: application/json
 DELETE {{host}}/catalog/brands/1
 Authorization: Bearer {{token}}
 Content-Type: application/json
+
+###
+
+### =====================================================================
+### Supplier association flow
+### =====================================================================
+
+### Step 1 — Login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "login": "admin",
+  "password": "admin"
+}
+
+> {%
+  client.global.set("token", response.body.token);
+  client.global.set("run", String(Date.now()));
+%}
+
+###
+
+### Step 2 — Create brand
+POST {{host}}/catalog/brands
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Brand Supplier Test {{run}}"
+}
+
+> {%
+  client.global.set("brandId", response.body.id);
+%}
+
+###
+
+### Step 3 — Create supplier party
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "LEGAL_ENTITY",
+  "cnpj": "92303004000167",
+  "legalName": "Fornecedor Brand Test {{run}}",
+  "customer": false,
+  "supplier": true,
+  "salesperson": false
+}
+
+> {%
+  client.global.set("supplierId", response.body.id);
+%}
+
+###
+
+### Step 4 — Add supplier to brand → 200 with supplierIds populated
+POST {{host}}/catalog/brands/{{brandId}}/suppliers/{{supplierId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 5 — Add same supplier again → 422 (already associated)
+POST {{host}}/catalog/brands/{{brandId}}/suppliers/{{supplierId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 6 — Remove supplier from brand → 200 with empty supplierIds
+DELETE {{host}}/catalog/brands/{{brandId}}/suppliers/{{supplierId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 7 — Remove supplier again → 422 (not associated)
+DELETE {{host}}/catalog/brands/{{brandId}}/suppliers/{{supplierId}}
+Authorization: Bearer {{token}}
+
+###
+
+### --- Error cases ---
+
+### Add supplier to non-existent brand → 404
+POST {{host}}/catalog/brands/999999/suppliers/{{supplierId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Add non-existent party as supplier → 404
+POST {{host}}/catalog/brands/{{brandId}}/suppliers/999999
+Authorization: Bearer {{token}}
+
+###
+
+### Add party that is not a supplier → 400
+POST {{host}}/catalog/brands/{{brandId}}/suppliers/1
+Authorization: Bearer {{token}}

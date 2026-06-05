@@ -1,6 +1,11 @@
 package github.io.ddmfuhrmann.outfit.catalog;
 
 import github.io.ddmfuhrmann.outfit.catalog.application.dto.*;
+import github.io.ddmfuhrmann.outfit.catalog.domain.event.ProductSkuCreated;
+import github.io.ddmfuhrmann.outfit.catalog.domain.model.Product;
+import github.io.ddmfuhrmann.outfit.party.application.dto.CreatePartyRequest;
+import github.io.ddmfuhrmann.outfit.party.application.dto.PartyCreatedResponse;
+import github.io.ddmfuhrmann.outfit.party.domain.model.PersonType;
 import github.io.ddmfuhrmann.outfit.shared.AbstractIT;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +63,18 @@ class ProductControllerIT extends AbstractIT {
                 new HttpEntity<>(request, headers), ProductResponse.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return resp.getBody();
+    }
+
+    private Long createSupplierParty(HttpHeaders headers, String cnpj) {
+        var req = new CreatePartyRequest(
+                PersonType.LEGAL_ENTITY, cnpj, null,
+                "Fornecedora Produto S.A.", "Fornecedora Produto",
+                false, true, false,
+                null, null, null);
+        var resp = rest.exchange("/party", HttpMethod.POST,
+                new HttpEntity<>(req, headers), PartyCreatedResponse.class);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return resp.getBody().id();
     }
 
     // --- tests ---
@@ -265,4 +282,46 @@ class ProductControllerIT extends AbstractIT {
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
     }
+
+    @Test
+    void createProduct_skuCreatedEventCarriesSupplierIds() {
+        var supplierIds = List.of(101L, 202L);
+        var product = Product.builder()
+                .description("Shirt With Suppliers")
+                .price(BigDecimal.valueOf(100.00))
+                .cost(BigDecimal.valueOf(50.00))
+                .brandId(1L)
+                .categoryId(1L)
+                .build(supplierIds);
+
+        product.addSku("BC-SUP-001", 1L, 5, supplierIds);
+
+        var skuCreatedEvent = (ProductSkuCreated) product.getRegisteredEvents().stream()
+                .filter(e -> e instanceof ProductSkuCreated)
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(skuCreatedEvent.snapshot().supplierIds()).containsExactlyInAnyOrderElementsOf(supplierIds);
+    }
+
+    @Test
+    void createProduct_skuCreatedEventCarriesEmptySupplierIds_whenBrandHasNoSupplier() {
+        var product = Product.builder()
+                .description("Shirt No Supplier")
+                .price(BigDecimal.valueOf(100.00))
+                .cost(BigDecimal.valueOf(50.00))
+                .brandId(1L)
+                .categoryId(1L)
+                .build(List.of());
+
+        product.addSku("BC-NOSUP-001", 1L, 5, List.of());
+
+        var skuCreatedEvent = (ProductSkuCreated) product.getRegisteredEvents().stream()
+                .filter(e -> e instanceof ProductSkuCreated)
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(skuCreatedEvent.snapshot().supplierIds()).isEmpty();
+    }
+
 }
