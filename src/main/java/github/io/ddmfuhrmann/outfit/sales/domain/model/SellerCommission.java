@@ -56,7 +56,7 @@ public class SellerCommission extends BaseAggregate<SellerCommission> {
     private CommissionStatus status;
 
     @Version
-    private long version;
+    private Long version;
 
     protected SellerCommission() {}
 
