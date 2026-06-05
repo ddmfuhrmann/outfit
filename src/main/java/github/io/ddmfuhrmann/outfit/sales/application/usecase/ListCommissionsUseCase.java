@@ -38,20 +38,17 @@ public class ListCommissionsUseCase {
     }
 
     private Specification<SellerCommission> buildSpec(ListCommissionsQuery query) {
-        Specification<SellerCommission> spec = Specification.where(null);
+        var specs = new java.util.ArrayList<Specification<SellerCommission>>();
 
-        if (query.salespersonId() != null) {
-            spec = spec.and((root, cq, cb) -> cb.equal(root.get("salespersonId"), query.salespersonId()));
-        }
-        if (query.status() != null) {
-            spec = spec.and((root, cq, cb) -> cb.equal(root.get("status"), query.status()));
-        }
-        if (query.from() != null) {
-            spec = spec.and((root, cq, cb) -> cb.greaterThanOrEqualTo(root.get("saleDate"), query.from()));
-        }
-        if (query.to() != null) {
-            spec = spec.and((root, cq, cb) -> cb.lessThanOrEqualTo(root.get("saleDate"), query.to()));
-        }
-        return spec;
+        if (query.salespersonId() != null)
+            specs.add((root, cq, cb) -> cb.equal(root.get("salespersonId"), query.salespersonId()));
+        if (query.status() != null)
+            specs.add((root, cq, cb) -> cb.equal(root.get("status"), query.status()));
+        if (query.from() != null)
+            specs.add((root, cq, cb) -> cb.greaterThanOrEqualTo(root.get("saleDate"), query.from()));
+        if (query.to() != null)
+            specs.add((root, cq, cb) -> cb.lessThanOrEqualTo(root.get("saleDate"), query.to()));
+
+        return Specification.allOf(specs);
     }
 }
