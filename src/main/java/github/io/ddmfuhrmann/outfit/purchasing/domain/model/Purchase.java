@@ -1,8 +1,11 @@
 package github.io.ddmfuhrmann.outfit.purchasing.domain.model;
 
+import github.io.ddmfuhrmann.outfit.purchasing.domain.event.PurchaseCancelled;
 import github.io.ddmfuhrmann.outfit.purchasing.domain.event.PurchaseConfirmed;
 import github.io.ddmfuhrmann.outfit.purchasing.domain.event.PurchaseLineSnapshot;
+import github.io.ddmfuhrmann.outfit.purchasing.domain.event.PurchaseOpened;
 import github.io.ddmfuhrmann.outfit.purchasing.domain.event.PurchasePayableSnapshot;
+import github.io.ddmfuhrmann.outfit.purchasing.domain.event.PurchaseUpdated;
 import github.io.ddmfuhrmann.outfit.shared.domain.model.BaseAggregate;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -54,6 +57,7 @@ public class Purchase extends BaseAggregate<Purchase> {
         purchase.purchaseDate = purchaseDate;
         purchase.observations = observations;
         purchase.status = PurchaseStatus.OPEN;
+        purchase.registerEvent(new PurchaseOpened(purchase.getId(), brandId, supplierId, purchaseDate, observations));
         return purchase;
     }
 
@@ -61,12 +65,14 @@ public class Purchase extends BaseAggregate<Purchase> {
         if (status != PurchaseStatus.OPEN)
             throw new IllegalStateException("Cannot add lines to a purchase that is not OPEN");
         lines.add(PurchaseLine.create(getId(), productSkuId, quantity, unitCost));
+        registerEvent(buildUpdatedEvent());
     }
 
     public void addPayable(LocalDate dueDate, BigDecimal amount) {
         if (status != PurchaseStatus.OPEN)
             throw new IllegalStateException("Cannot add payables to a purchase that is not OPEN");
         payables.add(PurchasePayable.create(getId(), dueDate, amount));
+        registerEvent(buildUpdatedEvent());
     }
 
     public void removePayable(Long payableId) {
@@ -77,6 +83,7 @@ public class Purchase extends BaseAggregate<Purchase> {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Payable not found: " + payableId));
         payables.remove(payable);
+        registerEvent(buildUpdatedEvent());
     }
 
     public void confirm() {
@@ -103,6 +110,14 @@ public class Purchase extends BaseAggregate<Purchase> {
         if (status != PurchaseStatus.OPEN)
             throw new IllegalStateException("Cannot cancel a purchase that is not OPEN");
         status = PurchaseStatus.CANCELLED;
+        registerEvent(new PurchaseCancelled(getId()));
+    }
+
+    public void updateObservations(String observations) {
+        if (status != PurchaseStatus.OPEN)
+            throw new IllegalStateException("Cannot update observations of a purchase that is not OPEN");
+        this.observations = observations;
+        registerEvent(buildUpdatedEvent());
     }
 
     private BigDecimal totalLinesAmount() {
@@ -111,14 +126,25 @@ public class Purchase extends BaseAggregate<Purchase> {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private PurchaseConfirmed buildConfirmedEvent() {
-        var lineSnapshots = lines.stream()
+    private List<PurchaseLineSnapshot> buildLineSnapshots() {
+        return lines.stream()
                 .map(l -> new PurchaseLineSnapshot(l.getProductSkuId(), l.getQuantity(), l.getUnitCost()))
                 .toList();
-        var payableSnapshots = payables.stream()
-                .map(p -> new PurchasePayableSnapshot(p.getDueDate(), p.getAmount()))
+    }
+
+    private List<PurchasePayableSnapshot> buildPayableSnapshots() {
+        return payables.stream()
+                .map(p -> new PurchasePayableSnapshot(p.getId(), p.getDueDate(), p.getAmount()))
                 .toList();
+    }
+
+    private PurchaseUpdated buildUpdatedEvent() {
+        return new PurchaseUpdated(getId(), brandId, supplierId, purchaseDate, observations,
+                status.name(), buildLineSnapshots(), buildPayableSnapshots());
+    }
+
+    private PurchaseConfirmed buildConfirmedEvent() {
         return new PurchaseConfirmed(getId(), brandId, supplierId, purchaseDate, observations,
-                lineSnapshots, payableSnapshots);
+                buildLineSnapshots(), buildPayableSnapshots());
     }
 }

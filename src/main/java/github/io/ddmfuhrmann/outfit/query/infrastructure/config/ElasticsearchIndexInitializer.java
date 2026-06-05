@@ -33,14 +33,16 @@ public class ElasticsearchIndexInitializer {
     public static final String STOCK_MONTHLY_INDEX  = "stock_monthly";
     public static final String INDEX_CONSIGNMENTS   = "consignments";
     public static final String INDEX_SALES          = "sales";
+    public static final String INDEX_PURCHASES      = "purchases";
 
     // --- shared field names ---
     public static final String FIELD_SKU_ID      = "skuId";
     public static final String FIELD_PRODUCT_ID  = "productId";
     public static final String FIELD_BRAND_ID    = "brandId";
     public static final String FIELD_CATEGORY_ID = "categoryId";
-    public static final String FIELD_COLOR_ID    = "colorId";
-    public static final String FIELD_ACTIVE      = "active";
+    public static final String FIELD_COLOR_ID     = "colorId";
+    public static final String FIELD_SUPPLIER_ID  = "supplierId";
+    public static final String FIELD_ACTIVE       = "active";
 
     // --- stock_snapshot field names ---
     public static final String FIELD_CURRENT_BALANCE = "currentBalance";
@@ -89,6 +91,11 @@ public class ElasticsearchIndexInitializer {
                     .properties("customerName", p -> p.searchAsYouType(s -> s)));
             createIndex(INDEX_SALES, m -> m.dynamic(DynamicMapping.True)
                     .properties("customerName", p -> p.searchAsYouType(s -> s)));
+            createIndex(INDEX_PURCHASES, m -> m.dynamic(DynamicMapping.True)
+                    .properties("status",       p -> p.keyword(k -> k))
+                    .properties(FIELD_BRAND_ID,    p -> p.long_(l -> l))
+                    .properties(FIELD_SUPPLIER_ID, p -> p.long_(l -> l))
+                    .properties("purchaseDate", p -> p.date(d -> d)));
             createIndex(STOCK_MONTHLY_INDEX, m -> m.dynamic(DynamicMapping.True)
                     .properties(FIELD_SKU_ID,          p -> p.keyword(k -> k))
                     .properties(FIELD_PRODUCT_ID,      p -> p.keyword(k -> k))

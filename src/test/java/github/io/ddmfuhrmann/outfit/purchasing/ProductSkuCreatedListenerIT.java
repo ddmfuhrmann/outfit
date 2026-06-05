@@ -7,6 +7,7 @@ import github.io.ddmfuhrmann.outfit.party.domain.model.PersonType;
 import github.io.ddmfuhrmann.outfit.purchasing.domain.model.PurchaseStatus;
 import github.io.ddmfuhrmann.outfit.purchasing.infrastructure.persistence.JpaPurchaseRepository;
 import github.io.ddmfuhrmann.outfit.shared.AbstractIT;
+import github.io.ddmfuhrmann.outfit.shared.TestCnpjFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -14,7 +15,7 @@ import org.springframework.http.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.time.Month;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,32 +26,6 @@ class ProductSkuCreatedListenerIT extends AbstractIT {
 
     @Autowired
     JpaPurchaseRepository purchaseRepository;
-
-    private static final AtomicInteger CNPJ_SEED = new AtomicInteger(100);
-
-    // Generates a syntactically valid CNPJ from a base integer
-    private static String generateCnpj() {
-        int base = CNPJ_SEED.incrementAndGet();
-        int[] d = new int[14];
-        String baseStr = String.format("%012d", base);
-        for (int i = 0; i < 12; i++) d[i] = baseStr.charAt(i) - '0';
-
-        int[] w1 = {5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2};
-        int sum = 0;
-        for (int i = 0; i < 12; i++) sum += d[i] * w1[i];
-        int r = sum % 11;
-        d[12] = r < 2 ? 0 : 11 - r;
-
-        int[] w2 = {6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2};
-        sum = 0;
-        for (int i = 0; i < 13; i++) sum += d[i] * w2[i];
-        r = sum % 11;
-        d[13] = r < 2 ? 0 : 11 - r;
-
-        StringBuilder sb = new StringBuilder();
-        for (int digit : d) sb.append(digit);
-        return sb.toString();
-    }
 
     private Long createBrand(HttpHeaders headers, String suffix) {
         var resp = rest.exchange("/catalog/brands", HttpMethod.POST,
@@ -87,7 +62,7 @@ class ProductSkuCreatedListenerIT extends AbstractIT {
     }
 
     private Long createSupplierParty(HttpHeaders headers) {
-        String cnpj = generateCnpj();
+        String cnpj = TestCnpjFactory.generate();
         var req = new CreatePartyRequest(
                 PersonType.LEGAL_ENTITY, cnpj, null,
                 "Fornecedora " + cnpj + " S.A.", "Fornecedora " + cnpj,
@@ -118,7 +93,7 @@ class ProductSkuCreatedListenerIT extends AbstractIT {
         createProduct(headers, brandId, categoryId, sizeId, "PR-ND-" + ts, null);
 
         var result = purchaseRepository.findByBrandIdAndPurchaseDateAndStatus(
-                brandId, LocalDate.of(2025, 1, 10), PurchaseStatus.OPEN);
+                brandId, LocalDate.of(2025, Month.JANUARY, 10), PurchaseStatus.OPEN);
         assertThat(result).isEmpty();
 
         // Also verify no purchase at all was created for this brand
@@ -135,7 +110,7 @@ class ProductSkuCreatedListenerIT extends AbstractIT {
         var brandId = createBrand(headers, "First-" + ts);
         var categoryId = createCategory(headers, "First-" + ts);
         var sizeId = createSize(headers, "First-" + ts);
-        var purchaseDate = LocalDate.of(2025, 1, 10);
+        var purchaseDate = LocalDate.of(2025, Month.JANUARY, 10);
 
         createProduct(headers, brandId, categoryId, sizeId, "PR-F-" + ts, purchaseDate);
 
@@ -155,7 +130,7 @@ class ProductSkuCreatedListenerIT extends AbstractIT {
         var brandId = createBrand(headers, "Second-" + ts);
         var categoryId = createCategory(headers, "Second-" + ts);
         var sizeId = createSize(headers, "Second-" + ts);
-        var purchaseDate = LocalDate.of(2025, 2, 15);
+        var purchaseDate = LocalDate.of(2025, Month.FEBRUARY, 15);
 
         createProduct(headers, brandId, categoryId, sizeId, "PR-S1-" + ts, purchaseDate);
         createProduct(headers, brandId, categoryId, sizeId, "PR-S2-" + ts, purchaseDate);
@@ -174,7 +149,7 @@ class ProductSkuCreatedListenerIT extends AbstractIT {
         addSupplierToBrand(headers, brandId, supplierId);
         var categoryId = createCategory(headers, "OneSupp-" + ts);
         var sizeId = createSize(headers, "OneSupp-" + ts);
-        var purchaseDate = LocalDate.of(2025, 3, 1);
+        var purchaseDate = LocalDate.of(2025, Month.MARCH, 1);
 
         createProduct(headers, brandId, categoryId, sizeId, "PR-OS-" + ts, purchaseDate);
 
@@ -195,7 +170,7 @@ class ProductSkuCreatedListenerIT extends AbstractIT {
         addSupplierToBrand(headers, brandId, supplierId2);
         var categoryId = createCategory(headers, "MultiSupp-" + ts);
         var sizeId = createSize(headers, "MultiSupp-" + ts);
-        var purchaseDate = LocalDate.of(2025, 4, 1);
+        var purchaseDate = LocalDate.of(2025, Month.APRIL, 1);
 
         createProduct(headers, brandId, categoryId, sizeId, "PR-MS-" + ts, purchaseDate);
 
@@ -212,7 +187,7 @@ class ProductSkuCreatedListenerIT extends AbstractIT {
         var brandId = createBrand(headers, "NoSupp-" + ts);
         var categoryId = createCategory(headers, "NoSupp-" + ts);
         var sizeId = createSize(headers, "NoSupp-" + ts);
-        var purchaseDate = LocalDate.of(2025, 5, 1);
+        var purchaseDate = LocalDate.of(2025, Month.MAY, 1);
 
         createProduct(headers, brandId, categoryId, sizeId, "PR-NS-" + ts, purchaseDate);
 

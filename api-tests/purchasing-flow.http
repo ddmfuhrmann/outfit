@@ -1,0 +1,273 @@
+### Step 1 — Login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "login": "admin",
+  "password": "admin"
+}
+
+> {%
+  client.global.set("token", response.body.token);
+  client.global.set("run", String(Date.now()));
+%}
+
+###
+
+### Step 2 — Create brand
+POST {{host}}/catalog/brands
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Purchase Flow Brand {{run}}"
+}
+
+> {%
+  client.global.set("brandId", response.body.id);
+%}
+
+###
+
+### Step 3 — Create supplier party
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "LEGAL_ENTITY",
+  "cnpj": "12345678000195",
+  "legalName": "Fornecedor Purchase {{run}}",
+  "name": "Fornecedor {{run}}",
+  "customer": false,
+  "supplier": true,
+  "salesperson": false
+}
+
+> {%
+  client.global.set("supplierId", response.body.id);
+%}
+
+###
+
+### Step 4 — Associate supplier to brand
+POST {{host}}/catalog/brands/{{brandId}}/suppliers/{{supplierId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 5 — Create category
+POST {{host}}/catalog/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Purchase Flow Category {{run}}",
+  "parentId": null
+}
+
+> {%
+  client.global.set("categoryId", response.body.id);
+%}
+
+###
+
+### Step 6 — Create size
+POST {{host}}/catalog/sizes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "M-{{run}}"
+}
+
+> {%
+  client.global.set("sizeId", response.body.id);
+%}
+
+###
+
+### Step 7 — Create product with SKU (triggers PurchaseOpened + PurchaseUpdated)
+# ProductSkuCreated event → ProductSkuCreatedListener → CreateOrUpdatePurchaseUseCase
+# → Purchase.create() fires PurchaseOpened, Purchase.addLine() fires PurchaseUpdated
+# Product must have purchaseDate set for the listener to create a purchase
+POST {{host}}/catalog/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Purchase Flow Product {{run}}",
+  "price": 199.90,
+  "cost": 89.90,
+  "purchaseDate": "2026-07-01",
+  "colorId": null,
+  "brandId": "{{brandId}}",
+  "categoryId": "{{categoryId}}",
+  "skus": [
+    {
+      "barcode": "PR-{{run}}",
+      "sizeId": "{{sizeId}}",
+      "implantationQty": 10
+    }
+  ]
+}
+
+> {%
+  client.global.set("productId", response.body.id);
+  client.global.set("skuId", response.body.skus[0].id);
+%}
+
+###
+
+### Step 8 — Get purchase by supplierId filter
+GET {{host}}/purchases?supplierId={{supplierId}}
+Authorization: Bearer {{token}}
+
+> {%
+  client.global.set("purchaseId", response.body.content[0].id);
+%}
+
+###
+
+### Step 9 — Add payable (will be removed in next step)
+POST {{host}}/purchases/{{purchaseId}}/payables
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dueDate": "2026-08-01",
+  "amount": 50.00
+}
+
+> {%
+  client.global.set("payableId", response.body.payables[0].id);
+%}
+
+###
+
+### Step 10 — Remove payable
+DELETE {{host}}/purchases/{{purchaseId}}/payables/{{payableId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 11 — Add correct payable (amount matches lines total)
+POST {{host}}/purchases/{{purchaseId}}/payables
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dueDate": "2026-08-15",
+  "amount": 899.00
+}
+
+###
+
+### Step 12 — Update observations
+PUT {{host}}/purchases/{{purchaseId}}/observations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "observations": "Compra revisada {{run}}"
+}
+
+###
+
+### Step 13 — Confirm purchase
+POST {{host}}/purchases/{{purchaseId}}/confirm
+Authorization: Bearer {{token}}
+
+###
+
+### Step 14 — Get confirmed purchase (status must be CONFIRMED)
+GET {{host}}/purchases/{{purchaseId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 15 — Create second product SKU for new purchase (different purchaseDate → new purchase)
+POST {{host}}/catalog/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Purchase Flow Product 2 {{run}}",
+  "price": 149.90,
+  "cost": 59.90,
+  "purchaseDate": "2026-08-01",
+  "colorId": null,
+  "brandId": "{{brandId}}",
+  "categoryId": "{{categoryId}}",
+  "skus": [
+    {
+      "barcode": "PR2-{{run}}",
+      "sizeId": "{{sizeId}}",
+      "implantationQty": 5
+    }
+  ]
+}
+
+> {%
+  client.global.set("productId2", response.body.id);
+  client.global.set("skuId2", response.body.skus[0].id);
+%}
+
+###
+
+### Step 16 — Get second purchase (status=OPEN, different purchaseDate)
+GET {{host}}/purchases?supplierId={{supplierId}}&status=OPEN
+Authorization: Bearer {{token}}
+
+> {%
+  client.global.set("purchase2Id", response.body.content[0].id);
+%}
+
+###
+
+### Step 17 — Cancel second purchase
+POST {{host}}/purchases/{{purchase2Id}}/cancel
+Authorization: Bearer {{token}}
+
+###
+
+### Step 18 — List CONFIRMED purchases
+GET {{host}}/purchases?status=CONFIRMED
+Authorization: Bearer {{token}}
+
+###
+
+### --- Error cases ---
+
+### Error 1 — Add payable to CONFIRMED purchase → 422
+POST {{host}}/purchases/{{purchaseId}}/payables
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dueDate": "2026-09-01",
+  "amount": 100.00
+}
+
+###
+
+### Error 2 — Confirm unknown purchase → 404
+POST {{host}}/purchases/9999999999999/confirm
+Authorization: Bearer {{token}}
+
+###
+
+### Error 3 — Add payable with missing amount field → 400
+POST {{host}}/purchases/{{purchaseId}}/payables
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dueDate": "2026-09-01"
+}
+
+###
+
+### Error 4 — Cancel confirmed purchase → 422
+POST {{host}}/purchases/{{purchaseId}}/cancel
+Authorization: Bearer {{token}}
