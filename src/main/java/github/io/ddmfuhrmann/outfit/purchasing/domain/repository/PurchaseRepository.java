@@ -8,6 +8,8 @@ import java.util.Optional;
 
 public interface PurchaseRepository {
 
+    Optional<Purchase> findById(Long id);
+
     Optional<Purchase> findByBrandIdAndPurchaseDateAndStatus(Long brandId, LocalDate purchaseDate, PurchaseStatus status);
 
     Purchase save(Purchase purchase);
