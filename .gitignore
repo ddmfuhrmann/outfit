@@ -46,3 +46,5 @@ out/
 .ship/
 .plans/
 .prds/
+docs/prd/
+docs/tasks/
