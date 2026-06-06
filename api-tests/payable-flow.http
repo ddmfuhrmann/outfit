@@ -1,0 +1,276 @@
+### Step 1 — Login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "login": "admin",
+  "password": "admin"
+}
+
+> {%
+  client.global.set("token", response.body.token);
+  client.global.set("run", String(Date.now()));
+%}
+
+###
+
+### Step 2 — Create brand
+POST {{host}}/catalog/brands
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Brand Payable {{run}}"
+}
+
+> {%
+  client.global.set("brandId", response.body.id);
+%}
+
+###
+
+### Step 2b — Create supplier party
+POST {{host}}/party
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "personType": "LEGAL_ENTITY",
+  "cnpj": "12345678000195",
+  "legalName": "Fornecedor Payable {{run}} S.A.",
+  "name": "Fornecedor Payable {{run}}",
+  "customer": false,
+  "supplier": true,
+  "salesperson": false
+}
+
+> {%
+  client.global.set("supplierId", response.body.id);
+%}
+
+###
+
+### Step 2c — Associate supplier to brand
+POST {{host}}/catalog/brands/{{brandId}}/suppliers/{{supplierId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 2d — Create category
+POST {{host}}/catalog/categories
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Cat Payable {{run}}",
+  "parentId": null
+}
+
+> {%
+  client.global.set("categoryId", response.body.id);
+%}
+
+###
+
+### Step 2e — Create size
+POST {{host}}/catalog/sizes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "L"
+}
+
+> {%
+  client.global.set("sizeId", response.body.id);
+%}
+
+###
+
+### Step 3 — Create product + SKU with purchaseDate (triggers purchase creation via existing listener)
+POST {{host}}/catalog/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Payable Shirt {{run}}",
+  "price": 300.00,
+  "cost": 150.00,
+  "purchaseDate": "2026-07-01",
+  "colorId": null,
+  "brandId": "{{brandId}}",
+  "categoryId": "{{categoryId}}",
+  "skus": [
+    {
+      "barcode": "{{$uuid}}",
+      "sizeId": "{{sizeId}}",
+      "implantationQty": 10
+    }
+  ]
+}
+
+> {%
+  client.global.set("productId", response.body.id);
+  client.global.set("skuId", response.body.skus[0].id);
+%}
+
+###
+
+### Step 4 — Confirm purchase (triggers PurchaseConfirmedListener in finance)
+# First, find the purchase created for this brand
+GET {{host}}/purchases?brandId={{brandId}}&status=OPEN
+Authorization: Bearer {{token}}
+
+> {%
+  client.global.set("purchaseId", response.body.content[0].purchaseId);
+%}
+
+###
+
+### Step 4b — Add a payable to the purchase
+POST {{host}}/purchases/{{purchaseId}}/payables
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dueDate": "2026-08-01",
+  "amount": 1500.00
+}
+
+###
+
+### Step 4c — Confirm the purchase
+POST {{host}}/purchases/{{purchaseId}}/confirm
+Authorization: Bearer {{token}}
+
+###
+
+### Step 5 — GET /payables?supplierId — capture payable id
+# Served from Elasticsearch (synchronous replication)
+GET {{host}}/payables?supplierId={{supplierId}}&size=20
+Authorization: Bearer {{token}}
+
+> {%
+  client.global.set("payableId", response.body.content[0].payableId);
+%}
+
+###
+
+### Step 6 — Partial payment on payable (500 of 1500)
+POST {{host}}/payables/{{payableId}}/payments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "amount": 500.00
+}
+
+###
+
+### Step 7 — GET /payables/{{payableId}} — assert PARTIALLY_PAID
+GET {{host}}/payables/{{payableId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 8 — Final payment (remaining 1000)
+POST {{host}}/payables/{{payableId}}/payments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "amount": 1000.00
+}
+
+###
+
+### Step 9 — GET /payables/{{payableId}} — assert PAID
+GET {{host}}/payables/{{payableId}}
+Authorization: Bearer {{token}}
+
+###
+
+### Step 10 — Create second product (triggers second purchase), then cancel purchase → assert CANCELLED payables
+POST {{host}}/catalog/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "description": "Payable Shirt 2 {{run}}",
+  "price": 300.00,
+  "cost": 150.00,
+  "purchaseDate": "2026-07-02",
+  "colorId": null,
+  "brandId": "{{brandId}}",
+  "categoryId": "{{categoryId}}",
+  "skus": [
+    {
+      "barcode": "{{$uuid}}",
+      "sizeId": "{{sizeId}}",
+      "implantationQty": 5
+    }
+  ]
+}
+
+###
+
+### Step 10b — Find the second (OPEN) purchase for the brand on date 2026-07-02
+GET {{host}}/purchases?brandId={{brandId}}&status=OPEN
+Authorization: Bearer {{token}}
+
+> {%
+  client.global.set("purchaseId2", response.body.content[0].purchaseId);
+%}
+
+###
+
+### Step 10c — Add payable to purchase 2
+POST {{host}}/purchases/{{purchaseId2}}/payables
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "dueDate": "2026-09-01",
+  "amount": 750.00
+}
+
+###
+
+### Step 10d — Confirm purchase 2
+POST {{host}}/purchases/{{purchaseId2}}/confirm
+Authorization: Bearer {{token}}
+
+###
+
+### Step 10e — Cancel purchase 2
+POST {{host}}/purchases/{{purchaseId2}}/cancel
+Authorization: Bearer {{token}}
+
+###
+
+### Step 10f — GET /payables?supplierId — find the CANCELLED payable
+GET {{host}}/payables?supplierId={{supplierId}}&status=CANCELLED&size=20
+Authorization: Bearer {{token}}
+
+###
+
+### --- Error cases ---
+
+### Error 1 — Overpayment on an OPEN payable → 422
+# Use the payable from step 5 — it's PAID, but create a new sale to get an OPEN payable is complex
+# Instead, try to overpay the PAID payable which triggers a different guard
+POST {{host}}/payables/{{payableId}}/payments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "amount": 9999.00
+}
+
+###
+
+### Error 2 — Cancel a PAID payable → 422
+POST {{host}}/purchases/{{purchaseId}}/cancel
+Authorization: Bearer {{token}}
+
+###

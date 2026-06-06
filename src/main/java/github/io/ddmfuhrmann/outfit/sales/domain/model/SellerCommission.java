@@ -60,6 +60,19 @@ public class SellerCommission extends BaseAggregate<SellerCommission> {
 
     protected SellerCommission() {}
 
+    public void activateProportion(BigDecimal reduction) {
+        earnedAmount = earnedAmount.add(reduction);
+        pendingAmount = pendingAmount.subtract(reduction).max(BigDecimal.ZERO);
+
+        if (pendingAmount.compareTo(BigDecimal.ZERO) == 0) {
+            status = CommissionStatus.EARNED;
+        } else if (earnedAmount.compareTo(BigDecimal.ZERO) > 0) {
+            status = CommissionStatus.PARTIAL;
+        } else {
+            status = CommissionStatus.PENDING;
+        }
+    }
+
     public static Builder builder() {
         return new Builder();
     }
