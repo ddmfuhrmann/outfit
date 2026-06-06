@@ -34,6 +34,8 @@ public class ElasticsearchIndexInitializer {
     public static final String INDEX_CONSIGNMENTS   = "consignments";
     public static final String INDEX_SALES          = "sales";
     public static final String INDEX_PURCHASES      = "purchases";
+    public static final String INDEX_RECEIVABLES    = "receivables";
+    public static final String INDEX_PAYABLES       = "payables";
 
     // --- shared field names ---
     public static final String FIELD_SKU_ID      = "skuId";
@@ -106,6 +108,24 @@ public class ElasticsearchIndexInitializer {
                     .properties(FIELD_TOTAL_INBOUND,   p -> p.integer(i -> i))
                     .properties(FIELD_TOTAL_OUTBOUND,  p -> p.integer(i -> i))
                     .properties(FIELD_CLOSING_BALANCE, p -> p.integer(i -> i)));
+            createIndex(INDEX_RECEIVABLES, m -> m.dynamic(DynamicMapping.True)
+                    .properties("receivableId", p -> p.long_(l -> l))
+                    .properties("saleId",       p -> p.long_(l -> l))
+                    .properties("customerId",   p -> p.long_(l -> l))
+                    .properties("dueDate",      p -> p.date(d -> d))
+                    .properties("amount",       p -> p.double_(d -> d))
+                    .properties("balance",      p -> p.double_(d -> d))
+                    .properties("status",       p -> p.keyword(k -> k))
+                    .properties("createdAt",    p -> p.date(d -> d)));
+            createIndex(INDEX_PAYABLES, m -> m.dynamic(DynamicMapping.True)
+                    .properties("payableId",    p -> p.long_(l -> l))
+                    .properties("purchaseId",   p -> p.long_(l -> l))
+                    .properties(FIELD_SUPPLIER_ID, p -> p.long_(l -> l))
+                    .properties("dueDate",      p -> p.date(d -> d))
+                    .properties("amount",       p -> p.double_(d -> d))
+                    .properties("balance",      p -> p.double_(d -> d))
+                    .properties("status",       p -> p.keyword(k -> k))
+                    .properties("createdAt",    p -> p.date(d -> d)));
         } catch (IOException e) {
             throw new IndexingException("Failed to initialize Elasticsearch indices", e);
         }
